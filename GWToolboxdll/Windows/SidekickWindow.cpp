@@ -94,13 +94,13 @@ void SidekickWindow::Update(float delta)
     if (TIMER_DIFF(timers.activityTimer) < 20)
         return;
 
-    ResetTargets();
 
     timers.activityTimer = TIMER_INIT();
 
     if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) {
         party_ids = {};
         party_leader_id = 0;
+        HardReset();
     }
     else if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
         party_ids = {};
@@ -150,6 +150,8 @@ void SidekickWindow::Update(float delta)
 
         GW::PartyInfo* party = GW::PartyMgr::GetPartyInfo();
         if (!party) return;
+
+        ResetTargets();
 
         if (group_position_delay_frames == 0) {
             GW::Attribute* attributes = GW::PartyMgr::GetAgentAttributes(GW::Agents::GetPlayerId());
@@ -296,7 +298,7 @@ void SidekickWindow::Update(float delta)
                     else {
                         GW::AgentItem* itemAgent = a->GetAsAgentItem();
                         if (!itemAgent) continue;
-                        if (!itemAgent->owner && itemAgent->owner != sidekick->agent_id) continue;
+                        if (itemAgent->owner && itemAgent->owner != sidekick->agent_id) continue;
                         if (GW::GetSquareDistance(itemAgent->pos, sidekick->pos) > GW::Constants::SqrRange::Spirit) continue;
                         if (ShouldItemBePickedUp(itemAgent)) {
                             item_to_pick_up = itemAgent->agent_id;
@@ -365,8 +367,6 @@ void SidekickWindow::Update(float delta)
 
                 uint32_t called_target = info->players[0].calledTargetId;
 
-                GW::AgentLiving* called_enemy = nullptr;
-
                 if (called_target) {
                     GW::Agent* called_agent = GW::Agents::GetAgentByID(called_target);
                     called_enemy = called_agent ? called_agent->GetAsAgentLiving() : nullptr;
@@ -416,8 +416,8 @@ void SidekickWindow::Update(float delta)
                                     if (agentLiving->hp < 1.0f && (!lowest_health_ally || lowest_health_ally->hp > agentLiving->hp)) lowest_health_ally = agentLiving;
                                 }
                             }
-                            InCombatAgentChecker(agentLiving, sidekick);
                         }
+                        InCombatAgentChecker(agentLiving, sidekick);
                     }
                 }
 
@@ -590,10 +590,13 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
             RemoveEffectCallback(caster_id, value);
             break;
         }
-        case GenericValueID::skill_finished:
-        case GenericValueID::skill_stopped:
-        case GenericValueID::instant_skill_activated:
-        case GenericValueID::attack_skill_finished:
+        case GenericValueID::skill_activated: 
+        case GenericValueID::attack_skill_activated:
+        case GenericValueID::instant_skill_activated: {
+            SkillCallback(caster_id, value, target_id);
+            [[fallthrough]];
+        }
+       case GenericValueID::skill_stopped:
         case GenericValueID::attack_skill_stopped: {
             if (caster_id == playerId)
                 using_skill = false;
@@ -656,8 +659,8 @@ bool SidekickWindow::ShouldItemBePickedUp(GW::AgentItem* itemAgent)
     return false;
 }
 
-bool SidekickWindow::CanUseSkill(GW::SkillbarSkill* skillbar_skill, GW::Skill* skill_info, float cur_energy) {
-    if ((skill_info->adrenaline == 0 && skillbar_skill->GetRecharge()) || (skill_info->adrenaline > 0 && skillbar_skill->adrenaline_a < skill_info->adrenaline)) {
+bool SidekickWindow::CanUseSkill(GW::SkillbarSkill skillbar_skill, GW::Skill* skill_info, float cur_energy) {
+    if ((skill_info->adrenaline == 0 && skillbar_skill.GetRecharge()) || (skill_info->adrenaline > 0 && skillbar_skill.adrenaline_a < skill_info->adrenaline)) {
        return false;
     }
 
@@ -690,6 +693,13 @@ void SidekickWindow::RemoveEffectCallback(const uint32_t agent_id, const uint32_
     UNREFERENCED_PARAMETER(agent_id);
     UNREFERENCED_PARAMETER(value);
 }
+    
+void SidekickWindow::SkillCallback(const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id)
+{
+    UNREFERENCED_PARAMETER(caster_id);
+    UNREFERENCED_PARAMETER(value);
+    UNREFERENCED_PARAMETER(target_id);
+}
 
 void SidekickWindow::ResetTargets()
 {
@@ -698,4 +708,9 @@ void SidekickWindow::ResetTargets()
     lowest_health_enemy = nullptr;
     lowest_health_ally = nullptr;
     ResetTargetValues();
+}
+
+void SidekickWindow::HardReset()
+{
+    return;
 }

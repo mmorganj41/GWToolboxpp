@@ -28,14 +28,19 @@ public:
     bool InCombatAgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving) override; // For setting variables with respect to the agents in compass range
     bool OutOfCombatAgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving) override;
     
+    void HardReset();
     void ResetTargetValues() override;
-    virtual void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
-    virtual void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
+    void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
+    void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
+    void SkillCallback(const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt) override;
 
 private:
     bool hasBoonOfCreation = false;
     bool hasPain = false;
     bool hasBloodsong = false;
+
+    std::optional<uint32_t> painTarget = std::nullopt;
+    std::optional<uint32_t> bloodsongTarget = std::nullopt;
 
     std::set<uint32_t> painfulBondSet = {};
 };

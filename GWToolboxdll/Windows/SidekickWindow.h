@@ -51,7 +51,7 @@ public:
     virtual bool UseCombatSkill();      // For using skills in combat
     virtual bool UseOutOfCombatSkill(); // For using skills out of combat
     virtual bool SetUpCombatSkills();   // For setting up skills for combat
-    bool CanUseSkill(GW::SkillbarSkill* skillbar_skill, GW::Skill* skill_info, float cur_energy);
+    bool CanUseSkill(GW::SkillbarSkill skillbar_skill, GW::Skill* skill_info, float cur_energy);
 
     virtual bool InCombatAgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving); // For setting variables with respect to the agents in compass range
     virtual bool OutOfCombatAgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving);
@@ -66,9 +66,11 @@ public:
     void Draw(IDirect3DDevice9* pDevice) override;
     void Update(float delta) override;
 
+    virtual void HardReset();
     virtual void ResetTargetValues();
     virtual void AddEffectCallback(const uint32_t agent_id, const uint32_t value);
     virtual void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value);
+    virtual void SkillCallback(const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt);
 
     GW::AgentLiving* called_enemy = nullptr;
     GW::AgentLiving* closest_enemy = nullptr;

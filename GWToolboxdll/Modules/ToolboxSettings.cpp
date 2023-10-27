@@ -39,6 +39,7 @@
 #include <Windows/HeroBuildsWindow.h>
 #include <Windows/HotkeysWindow.h>
 #include <Windows/InfoWindow.h>
+#include <Windows/IWindow.h>
 #include <Windows/MaterialsWindow.h>
 #include <Windows/NotePadWindow.h>
 #include <Windows/ObjectiveTimerWindow.h>
@@ -132,6 +133,7 @@ namespace {
         TravelWindow::Instance(),
         InfoWindow::Instance(),
         RitualistSidekick::Instance(),
+        IWindow::Instance(),
         MaterialsWindow::Instance(),
         TradeWindow::Instance(),
         NotePadWindow::Instance(),
