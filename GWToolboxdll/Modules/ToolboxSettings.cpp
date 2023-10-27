@@ -2,77 +2,78 @@
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/GameContainers/GamePos.h>
-#include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/MapMgr.h>
 
-#include <Utils/GuiUtils.h>
 #include <GWToolbox.h>
+#include <Utils/GuiUtils.h>
 
-#include <Modules/Updater.h>
-#include <Modules/Resources.h>
 #include <Modules/ChatFilter.h>
-#include <Modules/ItemFilter.h>
-#include <Modules/DiscordModule.h>
-#include <Modules/TwitchModule.h>
-#include <Modules/PartyWindowModule.h>
-#include <Modules/ZrawDeepModule.h>
-#include <Modules/TeamspeakModule.h>
-#include <Modules/Teamspeak5Module.h>
-#include <Modules/ObserverModule.h>
 #include <Modules/ChatLog.h>
+#include <Modules/DiscordModule.h>
 #include <Modules/HintsModule.h>
-#include <Modules/PluginModule.h>
+#include <Modules/ItemFilter.h>
 #include <Modules/KeyboardLanguageFix.h>
+#include <Modules/ObserverModule.h>
+#include <Modules/PartyWindowModule.h>
+#include <Modules/PluginModule.h>
+#include <Modules/Resources.h>
+#include <Modules/Teamspeak5Module.h>
+#include <Modules/TeamspeakModule.h>
+#include <Modules/TwitchModule.h>
+#include <Modules/Updater.h>
+#include <Modules/ZrawDeepModule.h>
 #if 0
 #include <Modules/GWFileRequester.h>
 #endif
-#include <Modules/ToastNotifications.h>
-#include <Modules/MouseFix.h>
 #include <Modules/GuildWarsSettingsModule.h>
+#include <Modules/MouseFix.h>
+#include <Modules/ToastNotifications.h>
 
-#include <Windows/PconsWindow.h>
-#include <Windows/HotkeysWindow.h>
 #include <Windows/BuildsWindow.h>
+#include <Windows/CompletionWindow.h>
+#include <Windows/DailyQuestsWindow.h>
+#include <Windows/DupingWindow.h>
+#include <Windows/FactionLeaderboardWindow.h>
+#include <Windows/FriendListWindow.h>
 #include <Windows/HeroBuildsWindow.h>
-#include <Windows/TravelWindow.h>
+#include <Windows/HotkeysWindow.h>
 #include <Windows/InfoWindow.h>
 #include <Windows/MaterialsWindow.h>
 #include <Windows/NotePadWindow.h>
-#include <Windows/PartyStatisticsWindow.h>
-#include <Windows/TradeWindow.h>
 #include <Windows/ObjectiveTimerWindow.h>
-#include <Windows/FactionLeaderboardWindow.h>
-#include <Windows/DailyQuestsWindow.h>
-#include <Windows/FriendListWindow.h>
+#include <Windows/ObserverExportWindow.h>
+#include <Windows/ObserverPartyWindow.h>
 #include <Windows/ObserverPlayerWindow.h>
 #include <Windows/ObserverTargetWindow.h>
-#include <Windows/ObserverPartyWindow.h>
-#include <Windows/ObserverExportWindow.h>
-#include <Windows/CompletionWindow.h>
-#include <Windows/DupingWindow.h>
+#include <Windows/PartyStatisticsWindow.h>
+#include <Windows/PconsWindow.h>
+#include <Windows/RitualistSidekick.h>
+#include <Windows/TradeWindow.h>
+#include <Windows/TravelWindow.h>
 #ifdef _DEBUG
-#include <Windows/PacketLoggerWindow.h>
 #include <Windows/DoorMonitorWindow.h>
-#include <Windows/StringDecoderWindow.h>
+#include <Windows/PacketLoggerWindow.h>
 #include <Windows/SkillListingWindow.h>
+#include <Windows/StringDecoderWindow.h>
 #endif
-#include <Windows/RerollWindow.h>
 #include <Windows/ArmoryWindow.h>
+#include <Windows/RerollWindow.h>
 
-#include <Widgets/TimerWidget.h>
-#include <Widgets/HealthWidget.h>
-#include <Widgets/DistanceWidget.h>
-#include <Widgets/Minimap/Minimap.h>
-#include <Widgets/PartyDamage.h>
+#include <Widgets/AlcoholWidget.h>
 #include <Widgets/BondsWidget.h>
 #include <Widgets/ClockWidget.h>
-#include <Widgets/VanquishWidget.h>
-#include <Widgets/AlcoholWidget.h>
-#include <Widgets/SkillbarWidget.h>
-#include <Widgets/SkillMonitorWidget.h>
-#include <Widgets/WorldMapWidget.h>
+#include <Widgets/DistanceWidget.h>
 #include <Widgets/EffectsMonitorWidget.h>
+#include <Widgets/HealthWidget.h>
 #include <Widgets/LatencyWidget.h>
+#include <Widgets/Minimap/Minimap.h>
+#include <Widgets/PartyDamage.h>
+#include <Widgets/SkillMonitorWidget.h>
+#include <Widgets/SkillbarWidget.h>
+#include <Widgets/TimerWidget.h>
+#include <Widgets/VanquishWidget.h>
+#include <Widgets/WorldMapWidget.h>
 #include "ToolboxSettings.h"
 
 #define USE_OBFUSCATOR _DEBUG
@@ -89,8 +90,7 @@ namespace {
         const char* name;
         bool enabled;
 
-        ModuleToggle(ToolboxModule& m, const bool _enabled = true)
-            : toolbox_module(&m), name(m.Name()), enabled(_enabled) { }
+        ModuleToggle(ToolboxModule& m, const bool _enabled = true) : toolbox_module(&m), name(m.Name()), enabled(_enabled) {}
     };
 
     class WidgetToggle {
@@ -99,8 +99,7 @@ namespace {
         const char* name;
         bool enabled;
 
-        WidgetToggle(ToolboxWidget& m, const bool _enabled = true)
-            : toolbox_module(&m), name(m.Name()), enabled(_enabled) { }
+        WidgetToggle(ToolboxWidget& m, const bool _enabled = true) : toolbox_module(&m), name(m.Name()), enabled(_enabled) {}
     };
 
     class WindowToggle {
@@ -109,8 +108,7 @@ namespace {
         const char* name;
         bool enabled;
 
-        WindowToggle(ToolboxWindow& m, const bool _enabled = true)
-            : toolbox_module(&m), name(m.Name()), enabled(_enabled) { }
+        WindowToggle(ToolboxWindow& m, const bool _enabled = true) : toolbox_module(&m), name(m.Name()), enabled(_enabled) {}
     };
 
     const char* modules_ini_section = "Toolbox Modules";
@@ -119,40 +117,12 @@ namespace {
 #if USE_OBFUSCATOR
         Obfuscator::Instance(),
 #endif
-        PluginModule::Instance(),
-        ChatFilter::Instance(),
-        ItemFilter::Instance(),
-        PartyWindowModule::Instance(),
-        ToastNotifications::Instance(),
-        DiscordModule::Instance(),
-        TwitchModule::Instance(),
-        TeamspeakModule::Instance(),
-        Teamspeak5Module::Instance(),
-        ObserverModule::Instance(),
-        ChatLog::Instance(),
-        HintsModule::Instance(),
-        MouseFix::Instance(),
-        KeyboardLanguageFix::Instance(),
-        ZrawDeepModule::Instance(),
-        GuildWarsSettingsModule::Instance()
-    };
+        PluginModule::Instance(),     ChatFilter::Instance(),     ItemFilter::Instance(), PartyWindowModule::Instance(), ToastNotifications::Instance(), DiscordModule::Instance(),       TwitchModule::Instance(),   TeamspeakModule::Instance(),
+        Teamspeak5Module::Instance(), ObserverModule::Instance(), ChatLog::Instance(),    HintsModule::Instance(),       MouseFix::Instance(),           KeyboardLanguageFix::Instance(), ZrawDeepModule::Instance(), GuildWarsSettingsModule::Instance()};
 
-    std::vector<WidgetToggle> optional_widgets = {
-        TimerWidget::Instance(),
-        HealthWidget::Instance(),
-        SkillbarWidget::Instance(),
-        DistanceWidget::Instance(),
-        Minimap::Instance(),
-        PartyDamage::Instance(),
-        BondsWidget::Instance(),
-        ClockWidget::Instance(),
-        VanquishWidget::Instance(),
-        AlcoholWidget::Instance(),
-        WorldMapWidget::Instance(),
-        EffectsMonitorWidget::Instance(),
-        LatencyWidget::Instance(),
-        SkillMonitorWidget::Instance()
-    };
+    std::vector<WidgetToggle> optional_widgets = {TimerWidget::Instance(),    HealthWidget::Instance(),         SkillbarWidget::Instance(), DistanceWidget::Instance(),    Minimap::Instance(),
+                                                  PartyDamage::Instance(),    BondsWidget::Instance(),          ClockWidget::Instance(),    VanquishWidget::Instance(),    AlcoholWidget::Instance(),
+                                                  WorldMapWidget::Instance(), EffectsMonitorWidget::Instance(), LatencyWidget::Instance(),  SkillMonitorWidget::Instance()};
 
     std::vector<WindowToggle> optional_windows = {
         PconsWindow::Instance(),
@@ -161,6 +131,7 @@ namespace {
         HeroBuildsWindow::Instance(),
         TravelWindow::Instance(),
         InfoWindow::Instance(),
+        RitualistSidekick::Instance(),
         MaterialsWindow::Instance(),
         TradeWindow::Instance(),
         NotePadWindow::Instance(),
@@ -177,11 +148,10 @@ namespace {
         RerollWindow::Instance(),
         PartyStatisticsWindow::Instance(),
         DupingWindow::Instance(),
-        ArmoryWindow::Instance()
-    };
+        ArmoryWindow::Instance()};
 
     bool modules_sorted = false;
-}
+} // namespace
 
 bool ToolboxSettings::move_all = false;
 
@@ -359,8 +329,7 @@ void ToolboxSettings::Update(float)
     // save location data
     if (save_location_data && TIMER_DIFF(location_timer) > 1000) {
         location_timer = TIMER_INIT();
-        if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable
-            && GW::Agents::GetPlayer() != nullptr) {
+        if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Explorable && GW::Agents::GetPlayer() != nullptr) {
             GW::Constants::MapID current = GW::Map::GetMapID();
             if (location_current_map != current) {
                 location_current_map = current;
@@ -389,22 +358,15 @@ void ToolboxSettings::Update(float)
                 std::wstring prof_string;
                 if (const auto me = GW::Agents::GetCharacter()) {
                     prof_string += L" - ";
-                    prof_string += GetWProfessionAcronym(
-                        static_cast<GW::Constants::Profession>(me->primary));
+                    prof_string += GetWProfessionAcronym(static_cast<GW::Constants::Profession>(me->primary));
                     prof_string += L"-";
-                    prof_string += GetWProfessionAcronym(
-                        static_cast<GW::Constants::Profession>(me->secondary));
+                    prof_string += GetWProfessionAcronym(static_cast<GW::Constants::Profession>(me->secondary));
                 }
 
                 SYSTEMTIME localtime;
                 GetLocalTime(&localtime);
-                const std::wstring filename = std::to_wstring(localtime.wYear)
-                                              + L"-" + std::to_wstring(localtime.wMonth)
-                                              + L"-" + std::to_wstring(localtime.wDay)
-                                              + L" - " + std::to_wstring(localtime.wHour)
-                                              + L"-" + std::to_wstring(localtime.wMinute)
-                                              + L"-" + std::to_wstring(localtime.wSecond)
-                                              + L" - " + map_string + prof_string + L".log";
+                const std::wstring filename = std::to_wstring(localtime.wYear) + L"-" + std::to_wstring(localtime.wMonth) + L"-" + std::to_wstring(localtime.wDay) + L" - " + std::to_wstring(localtime.wHour) + L"-" + std::to_wstring(localtime.wMinute) +
+                                              L"-" + std::to_wstring(localtime.wSecond) + L" - " + map_string + prof_string + L".log";
 
                 if (location_file && location_file.is_open()) {
                     location_file.close();
