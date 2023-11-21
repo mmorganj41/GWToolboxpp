@@ -35,7 +35,7 @@
 #include <Logger.h>
 
 namespace {
-    int min_reaction_time = 50;
+    int min_reaction_time = 25;
 } // namespace
 
 bool MesmerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
@@ -244,11 +244,11 @@ void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
                 continue;
             }
 
-            int32_t free_time = it.second.cast_time - 250 * fast_casting_activation_array[fastCasting] / 100 - 2 * ping;
+            int32_t free_time = it.second.cast_time - 250 * fast_casting_activation_array[fastCasting] / 100 - 2 * ping - std::max(0L, min_reaction_time - TIMER_DIFF(it.second.cast_start));
 
             int32_t free_time_remaining = free_time - TIMER_DIFF(it.second.cast_start);
 
-            if (free_time_remaining < 0|| free_time - min_reaction_time < 0) {
+            if (free_time_remaining < 0 || free_time - min_reaction_time < 0) {
                 active_skills.erase(it.first);
                 continue;
             }
@@ -351,7 +351,7 @@ void MesmerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caste
         priority += 2;
     }
     
-    uint32_t activation_time = 250 * fast_casting_activation_array[fastCasting] / 100  + ping + min_reaction_time;
+    uint32_t activation_time = 250 * fast_casting_activation_array[fastCasting] / 100 + ping + min_reaction_time;
 
     if (cast_time * 1000 > activation_time) {
         if (skill) {
