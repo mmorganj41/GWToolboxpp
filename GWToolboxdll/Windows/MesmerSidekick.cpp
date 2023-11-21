@@ -83,28 +83,28 @@ bool MesmerSidekick::UseCombatSkill()
         return false;
     }
 
-    const int int_ping = static_cast<int>(ping);
-    const int interrupt_wait_time = TIMER_DIFF(currentInterruptSkill.reaction_timer) - currentInterruptSkill.reaction_time;
-    if (currentInterruptSkill.interruptSkill != std::nullopt && interrupt_wait_time < 750 + 2*250 * fast_casting_activation_array[fastCasting] / 100 + 2*int_ping) {
+    if (currentInterruptSkill.interruptSkill != std::nullopt) {
         GW::Agent* agent = GW::Agents::GetAgentByID(currentInterruptSkill.target_id);
         GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
-        Log::Info("Waiting");
         if (!(agentLiving && agentLiving->GetIsAlive() && (agentLiving->skill || TIMER_DIFF(currentInterruptSkill.reaction_timer) < 5))) {
+            Log::Info("Not casting - reset");
             ResetReaction();
             return false;
         }
 
 
-        if (TIMER_DIFF(currentInterruptSkill.reaction_timer) >= currentInterruptSkill.reaction_time - int_ping) {
+        if (TIMER_DIFF(currentInterruptSkill.reaction_timer) >= currentInterruptSkill.reaction_time - static_cast<int>(ping)) {
             if (UseSkillWithTimer(*currentInterruptSkill.interruptSkill, currentInterruptSkill.target_id)) {
+                Log::Info("Interrupting");
                 ResetReaction();
                 return true;
             }
+            Log::Info("Past use");
             ResetReaction();
         } 
     }
     else {
-        if (cur_energy > 10 && (currentInterruptSkill.interruptSkill == std::nullopt || interrupt_wait_time < 750 + 1250 * fast_casting_activation_array[fastCasting] / 100 + 2 * int_ping)) {
+        if (cur_energy > 10 && (!minimum_next_sequence || *minimum_next_sequence > 750 * fast_casting_activation_array[fastCasting] / 100)) {
             GW::SkillbarSkill shatterHex = skillbar->skills[2];
             if (!shatterHex.GetRecharge() && !hexedAllies.empty()) {
                 uint32_t hexedAlly = 0;
@@ -119,7 +119,8 @@ bool MesmerSidekick::UseCombatSkill()
             }
         }
 
-        if (enchantedEnemy && cur_energy > 5 && sidekickLiving->max_energy - cur_energy >= 10 && (currentInterruptSkill.interruptSkill == std::nullopt || interrupt_wait_time < 750 + 2250 * fast_casting_activation_array[fastCasting] / 100 + 2 * int_ping)) {
+        if (enchantedEnemy && cur_energy > 5 && sidekickLiving->max_energy - cur_energy >= 10 && (!minimum_next_sequence || *minimum_next_sequence > 1750 * fast_casting_activation_array[fastCasting] / 100))
+            {
             GW::SkillbarSkill drainEnchantment = skillbar->skills[7];
             if (!drainEnchantment.GetRecharge()) {
                 if (UseSkillWithTimer(7, enchantedEnemy->agent_id)) return true;
@@ -173,6 +174,7 @@ bool MesmerSidekick::SetUpCombatSkills(uint32_t called_target_id) {
 
 void MesmerSidekick::HardReset()
 {
+    minimum_next_sequence = std::nullopt;
     active_skills.clear();
     mesmerEffectSet.clear();
     enchantedEnemy = nullptr;
@@ -182,6 +184,7 @@ void MesmerSidekick::HardReset()
 }
 
 void MesmerSidekick::ResetTargetValues() {
+    minimum_next_sequence = std::nullopt;
     hexedAllies.clear();
     enchantedEnemy = nullptr;
     shatterDelusionsTarget = nullptr;
@@ -226,8 +229,7 @@ void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
 
         if (!canOverload && !canPowerDrain && !canCryOfPain && !canCryOfFrustration && !canTease) return;
 
-        std::optional<int32_t> minimum_next_sequence = std::nullopt;
-        const int after_cast_two_cast = 750 + fast_casting_activation_array[fastCasting] + ping;
+        const int after_cast_two_cast = 750 + 250 * fast_casting_activation_array[fastCasting] + ping;
 
         for (auto& it : active_skills) {
             const auto caster_agent = GW::Agents::GetAgentByID(it.second.caster_id);
@@ -246,7 +248,7 @@ void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
 
             int32_t free_time_remaining = free_time - TIMER_DIFF(it.second.cast_start);
 
-            if (free_time_remaining <= 0|| free_time - min_reaction_time < 0) {
+            if (free_time_remaining < 0|| free_time - min_reaction_time < 0) {
                 active_skills.erase(it.first);
                 continue;
             }
@@ -335,10 +337,11 @@ void MesmerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caste
                 if (!cast_time) {
                     cast_time = living_agent->weapon_attack_speed * living_agent->attack_speed_modifier;
                 }
-                cast_time /= 2;
-            }
+           }
         }
     }
+
+    if (value_id == GW::Packet::StoC::GenericValueID::attack_skill_activated) cast_time /= 2;
 
     const auto* target = GW::Agents::GetTarget();
 
@@ -494,9 +497,8 @@ void MesmerSidekick::ClearCurrentInterruptSkill() {
     currentInterruptSkill.reaction_time = 0;
     currentInterruptSkill.reaction_timer = 0;
 }
-void MesmerSidekick::SetCurrentInterruptSkill(InterruptSkill interruptSkill, SkillInfo skillInfo, std::optional<int32_t> minimum_next_sequence)
+void MesmerSidekick::SetCurrentInterruptSkill(InterruptSkill interruptSkill, SkillInfo skillInfo, std::optional<int32_t> next_sequence_time)
 {
-    Log::Info("Set interrupt skill");
     currentInterruptSkill.interruptSkill = interruptSkill;
     currentInterruptSkill.target_id = skillInfo.caster_id;
     currentInterruptSkill.cast_start = skillInfo.cast_start;
@@ -511,8 +513,8 @@ void MesmerSidekick::SetCurrentInterruptSkill(InterruptSkill interruptSkill, Ski
         currentInterruptSkill.reaction_time = std::min(min_reaction_time, free_time) - 50;
     }
 
-    if (minimum_next_sequence) {
-        currentInterruptSkill.reaction_time = std::min(*minimum_next_sequence - 50 + static_cast<int>(TIMER_DIFF(currentInterruptSkill.reaction_timer)), currentInterruptSkill.reaction_time);
+    if (next_sequence_time) {
+        currentInterruptSkill.reaction_time = std::min(*next_sequence_time - 50 + static_cast<int>(TIMER_DIFF(currentInterruptSkill.reaction_timer)), currentInterruptSkill.reaction_time);
     }
 }
 

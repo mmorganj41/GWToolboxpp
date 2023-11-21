@@ -62,6 +62,7 @@ private:
         int reaction_time;
         clock_t reaction_timer;
     };
+    std::optional<int32_t> minimum_next_sequence = std::nullopt;
 
     CurrentInterruptSkill currentInterruptSkill = {std::nullopt, 0, 0, 0, 0, 0, 0};
 
@@ -83,5 +84,5 @@ private:
     void GetFastCasting();
     void ResetReaction();
     void ClearCurrentInterruptSkill();
-    void SetCurrentInterruptSkill(InterruptSkill interruptSkill, SkillInfo skillInfo, std::optional<int32_t> minimum_next_sequence);
+    void SetCurrentInterruptSkill(InterruptSkill interruptSkill, SkillInfo skillInfo, std::optional<int32_t> next_sequence_time);
 };
