@@ -63,6 +63,7 @@ void IWindow::Initialize()
 
      GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericModifier>(&GenericModifier_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::GenericModifier* packet) -> void {
          UNREFERENCED_PARAMETER(status);
+         if (!mainSetting.enabled) return;
 
          const uint32_t type = packet->type;
          const uint32_t caster_id = packet->target_id;
@@ -72,7 +73,8 @@ void IWindow::Initialize()
      });
 
      GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericValue>(&GenericValueSelf_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::GenericValue* packet) -> void {
-         UNREFERENCED_PARAMETER(status);
+        UNREFERENCED_PARAMETER(status);
+        if (!mainSetting.enabled) return;
 
          const uint32_t value_id = packet->value_id;
          const uint32_t caster_id = packet->agent_id;
@@ -83,6 +85,7 @@ void IWindow::Initialize()
 
      GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericValueTarget>(&GenericValueTarget_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::GenericValueTarget* packet) -> void {
          UNREFERENCED_PARAMETER(status);
+        if (!mainSetting.enabled) return;
          using namespace GW::Packet::StoC::GenericValueID;
 
          const uint32_t value_id = packet->Value_id;
@@ -301,6 +304,7 @@ void IWindow::Initialize()
              const GW::AgentLiving* targeted_living = caster ? caster->GetAsAgentLiving() : nullptr;
 
              if (!(targeted_living && targeted_living->GetIsAlive() && (targeted_living->skill || TIMER_DIFF(reaction_timer) < 5))) {
+                 ResetReaction();
                  return;
              }
 

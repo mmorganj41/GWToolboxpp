@@ -30,25 +30,32 @@
 #include <Modules/MouseFix.h>
 #include <Modules/ToastNotifications.h>
 
+#include <Windows/AuspiciousBeginnings.h>
 #include <Windows/BuildsWindow.h>
 #include <Windows/CompletionWindow.h>
 #include <Windows/DailyQuestsWindow.h>
 #include <Windows/DupingWindow.h>
+#include <Windows/ElementalistSidekick.h>
 #include <Windows/FactionLeaderboardWindow.h>
 #include <Windows/FriendListWindow.h>
 #include <Windows/HeroBuildsWindow.h>
 #include <Windows/HotkeysWindow.h>
 #include <Windows/InfoWindow.h>
+#include <Windows/LDOA.h>
 #include <Windows/IWindow.h>
 #include <Windows/MaterialsWindow.h>
+#include <Windows/MesmerSidekick.h>
+#include <Windows/NecromancerSidekick.h>
 #include <Windows/NotePadWindow.h>
 #include <Windows/ObjectiveTimerWindow.h>
 #include <Windows/ObserverExportWindow.h>
 #include <Windows/ObserverPartyWindow.h>
 #include <Windows/ObserverPlayerWindow.h>
 #include <Windows/ObserverTargetWindow.h>
+#include <Windows/ParagonSidekick.h>
 #include <Windows/PartyStatisticsWindow.h>
 #include <Windows/PconsWindow.h>
+#include <Windows/RangerSidekick.h>
 #include <Windows/RitualistSidekick.h>
 #include <Windows/TradeWindow.h>
 #include <Windows/TravelWindow.h>
@@ -66,6 +73,7 @@
 #include <Widgets/ClockWidget.h>
 #include <Widgets/DistanceWidget.h>
 #include <Widgets/EffectsMonitorWidget.h>
+#include <Widgets/EnergyWidget.h>
 #include <Widgets/HealthWidget.h>
 #include <Widgets/LatencyWidget.h>
 #include <Widgets/Minimap/Minimap.h>
@@ -123,15 +131,21 @@ namespace {
 
     std::vector<WidgetToggle> optional_widgets = {TimerWidget::Instance(),    HealthWidget::Instance(),         SkillbarWidget::Instance(), DistanceWidget::Instance(),    Minimap::Instance(),
                                                   PartyDamage::Instance(),    BondsWidget::Instance(),          ClockWidget::Instance(),    VanquishWidget::Instance(),    AlcoholWidget::Instance(),
-                                                  WorldMapWidget::Instance(), EffectsMonitorWidget::Instance(), LatencyWidget::Instance(),  SkillMonitorWidget::Instance()};
+                                                  WorldMapWidget::Instance(), EffectsMonitorWidget::Instance(), LatencyWidget::Instance(),  SkillMonitorWidget::Instance(), EnergyWidget::Instance()};
 
-    std::vector<WindowToggle> optional_windows = {
+    std::vector<WindowToggle> optional_windows = {AuspiciousBeginnings::Instance(),
         PconsWindow::Instance(),
         HotkeysWindow::Instance(),
         BuildsWindow::Instance(),
         HeroBuildsWindow::Instance(),
         TravelWindow::Instance(),
         InfoWindow::Instance(),
+        LDOA::Instance(),
+        ElementalistSidekick::Instance(),
+        NecromancerSidekick::Instance(),
+        MesmerSidekick::Instance(),
+        ParagonSidekick::Instance(),
+        RangerSidekick::Instance(),
         RitualistSidekick::Instance(),
         IWindow::Instance(),
         MaterialsWindow::Instance(),

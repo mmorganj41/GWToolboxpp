@@ -39,44 +39,40 @@ namespace {
 
 
 void RitualistSidekick::ResetTargetValues() {
-    hasBloodsong = false;
-    hasPain = false;
-
+    hasLife = false;
+    hasVampirism = false;
+    allyWithCondition = nullptr;
+    deadAlly = nullptr;
 }
 
-bool RitualistSidekick::InCombatAgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
+bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
-    if (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) {
-        if (GW::GetSquareDistance(playerLiving->pos, agentLiving->pos) <= GW::Constants::SqrRange::Earshot)
-            switch (agentLiving->player_number) {
-                case 4124: {
-                    hasPain = true;
-                    return true;
-                }
-                case 4227: {
-                    hasBloodsong = true;
-                    return true;
-                }
-            }
-    }
-
-    return false;
-}
-
-bool RitualistSidekick::OutOfCombatAgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
-{
-    UNREFERENCED_PARAMETER(playerLiving);
-    if (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) {
-        switch (agentLiving->player_number) {
-            case 4124: {
-                hasPain = true;
-                return true;
-            }
-            case 4227: {
-                hasBloodsong = true;
-                return true;
-            }
-        }
+    switch (agentLiving->allegiance) {
+         case GW::Constants::Allegiance::Spirit_Pet: 
+         {
+             if (GW::GetSquareDistance(playerLiving->pos, agentLiving->pos) <= GW::Constants::SqrRange::Earshot) switch (agentLiving->player_number) {
+                     case 5723: {
+                         hasVampirism = true;
+                         return true;
+                     }
+                     case 4218: {
+                         hasLife = true;
+                         return true;
+                     }
+                 }
+             break;
+         }
+         case GW::Constants::Allegiance::Ally_NonAttackable: {
+             if (party_ids.contains(agentLiving->agent_id)) {
+                 if (!deadAlly && !agentLiving->GetIsAlive()) {
+                     deadAlly = agentLiving;
+                 }
+                 if (agentLiving->GetIsConditioned() && (!allyWithCondition || allyWithCondition->hp > agentLiving->hp)) {
+                     allyWithCondition = agentLiving;
+                 }
+             }          
+             break;
+         }
     }
 
     return false;
@@ -84,72 +80,100 @@ bool RitualistSidekick::OutOfCombatAgentChecker(GW::AgentLiving* agentLiving, GW
 
 bool RitualistSidekick::UseCombatSkill() {
     GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
-    if (!skillbar) return false;
-
-    GW::MapAgent* sidekick = GW::Agents::GetMapAgentByID(GW::Agents::GetPlayerId());
-    if (!sidekick) return false;
+    if (!skillbar) {
+        return false;
+    }
 
     GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
-    if (!sidekickLiving) return false;
-    
-    GW::Agent* target = GW::Agents::GetTarget();
+    if (!sidekickLiving) {
+        return false;
+    }
 
-    if (!hasBloodsong && target && GW::GetDistance(sidekickLiving->pos, target->pos) < GW::Constants::Range::Spirit / 2) {
-        GW::SkillbarSkill bloodsong_skillbar = skillbar->skills[0];
-        GW::Skill* bloodsong_skillinfo = GW::SkillbarMgr::GetSkillConstantData(bloodsong_skillbar.skill_id);
-        if (bloodsong_skillinfo && CanUseSkill(bloodsong_skillbar, bloodsong_skillinfo, sidekick->cur_energy)) {
-            GW::SkillbarMgr::UseSkill(0);
-            return true;
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (isCasting(sidekickLiving)) {
+        return false;
+    }
+
+    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
+
+    GW::SkillbarSkill boon_of_creation_skillbar = skillbar->skills[6];
+        if (!GW::Effects::GetPlayerBuffBySkillId(boon_of_creation_skillbar.skill_id)) {
+            GW::Skill* boon_of_creation_skillinfo = GW::SkillbarMgr::GetSkillConstantData(boon_of_creation_skillbar.skill_id);
+            if (boon_of_creation_skillinfo && CanUseSkill(boon_of_creation_skillbar, boon_of_creation_skillinfo, cur_energy) && !GW::Effects::GetPlayerEffectBySkillId(boon_of_creation_skillinfo->skill_id)) {
+                if (UseSkillWithTimer(6)) return true;
+            }
+    }    
+    
+    if (boon_of_creation_skillbar.GetRecharge()) {
+        GW::SkillbarSkill life = skillbar->skills[2];
+        if (!hasLife) {
+                GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(life.skill_id);
+                if (skillInfo && CanUseSkill(life, skillInfo, cur_energy)) {
+                    if (UseSkillWithTimer(2)) return true;
+                }
+            }
+
+        GW::SkillbarSkill recuperation = skillbar->skills[4];
+        if (!GW::Effects::GetPlayerEffectBySkillId(recuperation.skill_id)) {
+                GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(recuperation.skill_id);
+                if (skillInfo && CanUseSkill(recuperation, skillInfo, cur_energy)) {
+                    if (UseSkillWithTimer(4)) return true;
+                }
+            }
+
+        GW::SkillbarSkill recovery = skillbar->skills[0];
+            if (!GW::Effects::GetPlayerEffectBySkillId(recovery.skill_id) && allyWithCondition) {
+                GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(recovery.skill_id);
+                if (skillInfo && CanUseSkill(recovery, skillInfo, cur_energy)) {
+                    if (UseSkillWithTimer(0)) return true;
+                }
+            }
+
+
+        if (!hasVampirism && target && GW::GetDistance(sidekickLiving->pos, target->pos) < GW::Constants::Range::Spirit / 2) {
+            GW::SkillbarSkill vampirism = skillbar->skills[1];
+            GW::Skill* vampirism_skillinfo = GW::SkillbarMgr::GetSkillConstantData(vampirism.skill_id);
+            if (vampirism_skillinfo && CanUseSkill(vampirism, vampirism_skillinfo, cur_energy)) {
+                if (UseSkillWithTimer(1)) return true;
+            }
         }
     }
 
-        if (!hasPain && target && GW::GetDistance(sidekickLiving->pos, target->pos) < GW::Constants::Range::Spirit / 2)
-        {
-            GW::SkillbarSkill pain_skillbar = skillbar->skills[1];
-            GW::Skill* pain_skillinfo = GW::SkillbarMgr::GetSkillConstantData(pain_skillbar.skill_id);
-            if (pain_skillinfo && CanUseSkill(pain_skillbar, pain_skillinfo, sidekick->cur_energy)) {
-                GW::SkillbarMgr::UseSkill(1);
-                return true;
-            };
-        }
-
-        if (lowest_health_ally && lowest_health_ally->hp < .7 && !lowest_health_ally->GetIsWeaponSpelled() && sidekick->cur_energy >= 17) {
-            GW::SkillbarSkill weapon_of_warding_skillbar = skillbar->skills[2];
-            GW::Skill* weapon_of_warding_skillinfo = GW::SkillbarMgr::GetSkillConstantData(weapon_of_warding_skillbar.skill_id);
-            if (weapon_of_warding_skillinfo && CanUseSkill(weapon_of_warding_skillbar, weapon_of_warding_skillinfo, sidekick->cur_energy)) {
-                GW::SkillbarMgr::UseSkill(2, lowest_health_ally->agent_id);
+    if (lowest_health_ally && lowest_health_ally->hp < .65) {
+        GW::SkillbarSkill spiritLight = skillbar->skills[3];
+        GW::Skill* spiritLightSkillInfo = GW::SkillbarMgr::GetSkillConstantData(spiritLight.skill_id);
+        if (spiritLightSkillInfo && CanUseSkill(spiritLight, spiritLightSkillInfo, cur_energy)) {
+              if (UseSkillWithTimer(3, lowest_health_ally->agent_id)) {
                 return true;
             }
         }
+    }
 
-        if (sidekick->cur_energy > 17 && (painTarget || bloodsongTarget)) {
-            GW::SkillbarSkill painful_bond_skillbar = skillbar->skills[3];
-            GW::Skill* painful_bond_skillinfo = GW::SkillbarMgr::GetSkillConstantData(painful_bond_skillbar.skill_id);
-            if (painful_bond_skillinfo && CanUseSkill(painful_bond_skillbar, painful_bond_skillinfo, sidekick->cur_energy)) {
-                if (painTarget && !painfulBondSet.contains(*painTarget)) {
-                    GW::Agent* spiritTarget = GW::Agents::GetAgentByID(*painTarget);
-                    if (spiritTarget) {
-                        GW::AgentLiving* targetLiving = spiritTarget->GetAsAgentLiving();
-                        if (targetLiving && targetLiving->GetIsAlive()) {
-                            GW::SkillbarMgr::UseSkill(3, targetLiving->agent_id);
-                            return true;
-                        }
-                    }
-                    painTarget = std::nullopt;
-                }
-                if (bloodsongTarget && !painfulBondSet.contains(*bloodsongTarget)) {
-                    GW::Agent* spiritTarget = GW::Agents::GetAgentByID(*bloodsongTarget);
-                    if (spiritTarget) {
-                        GW::AgentLiving* targetLiving = spiritTarget->GetAsAgentLiving();
-                        if (targetLiving && targetLiving->GetIsAlive()) {
-                            GW::SkillbarMgr::UseSkill(3, targetLiving->agent_id);
-                            return true;
-                        }
-                    }
-                    bloodsongTarget = std::nullopt;
+    GW::SkillbarSkill mendBodyAndSoul = skillbar->skills[5];
+    GW::Skill* mendBodyAndSoulSkillInfo = GW::SkillbarMgr::GetSkillConstantData(mendBodyAndSoul.skill_id);
+        if (mendBodyAndSoulSkillInfo && CanUseSkill(mendBodyAndSoul, mendBodyAndSoulSkillInfo, cur_energy)) {
+            if (allyWithCondition) {
+                if (UseSkillWithTimer(5, allyWithCondition->agent_id)) {
+                    return true;
                 }
             }
+            else if (lowest_health_ally && lowest_health_ally->hp < .65) {
+                if (UseSkillWithTimer(5, lowest_health_ally->agent_id)) {
+                    return true;
+                }
+            }
+    }
+    
+    if (!(lowest_health_ally && lowest_health_ally->hp > .5) && deadAlly) {
+        GW::SkillbarSkill fleshOfMyFlesh = skillbar->skills[7];
+        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(fleshOfMyFlesh.skill_id);
+        if (skillInfo && CanUseSkill(fleshOfMyFlesh, skillInfo, cur_energy)) {
+            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
+                return true;
+            }
         }
+    }
 
     return false;
  }
@@ -158,93 +182,69 @@ bool RitualistSidekick::UseOutOfCombatSkill() {
     GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
     if (!skillbar) return false;
 
-    GW::MapAgent* sidekick = GW::Agents::GetMapAgentByID(GW::Agents::GetPlayerId());
-    if (!sidekick) return false;
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
 
-    if (lowest_health_ally && lowest_health_ally->hp < .7 && !lowest_health_ally->GetIsWeaponSpelled() && sidekick->cur_energy >= 17) {
-        GW::SkillbarSkill weapon_of_warding_skillbar = skillbar->skills[2];
-        GW::Skill* weapon_of_warding_skillinfo = GW::SkillbarMgr::GetSkillConstantData(weapon_of_warding_skillbar.skill_id);
-        if (weapon_of_warding_skillinfo && CanUseSkill(weapon_of_warding_skillbar, weapon_of_warding_skillinfo, sidekick->cur_energy)) {
-            GW::SkillbarMgr::UseSkill(2, lowest_health_ally->agent_id);
-            return true;
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (lowest_health_ally && lowest_health_ally->hp < .6) {
+        GW::SkillbarSkill spiritLight = skillbar->skills[3];
+        GW::Skill* spiritLightSkillInfo = GW::SkillbarMgr::GetSkillConstantData(spiritLight.skill_id);
+        if (spiritLightSkillInfo && CanUseSkill(spiritLight, spiritLightSkillInfo, cur_energy)) {
+            if (UseSkillWithTimer(3, lowest_health_ally->agent_id)) {
+                    return true;
+            }
+        }
+    }
+
+    if (!(lowest_health_ally && lowest_health_ally->hp < .5) && deadAlly) {
+        GW::SkillbarSkill fleshOfMyFlesh = skillbar->skills[7];
+        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(fleshOfMyFlesh.skill_id);
+        if (skillInfo && CanUseSkill(fleshOfMyFlesh, skillInfo, cur_energy)) {
+            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
+                    return true;
+            }
+        }
+    }
+
+
+
+    return false; 
+}
+
+bool RitualistSidekick::SetUpCombatSkills(uint32_t called_target_id) { 
+    UNREFERENCED_PARAMETER(called_target_id);
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    if (!skillbar) return false;
+
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
+
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+
+    if (isCasting(sidekickLiving)) return false;
+
+    GW::SkillbarSkill boon_of_creation_skillbar = skillbar->skills[6];
+    if (!GW::Effects::GetPlayerBuffBySkillId(boon_of_creation_skillbar.skill_id)) {
+        GW::Skill* boon_of_creation_skillinfo = GW::SkillbarMgr::GetSkillConstantData(boon_of_creation_skillbar.skill_id);
+        if (boon_of_creation_skillinfo && CanUseSkill(boon_of_creation_skillbar, boon_of_creation_skillinfo, cur_energy) && !GW::Effects::GetPlayerEffectBySkillId(boon_of_creation_skillinfo->skill_id)) {
+            if (UseSkillWithTimer(6))
+                return true;
         }
     }
 
     return false; 
 }
 
-bool RitualistSidekick::SetUpCombatSkills() { return false; }
-
-void RitualistSidekick::AddEffectCallback(const uint32_t agent_id, const uint32_t value)
-{
-    if (agent_id == GW::Agents::GetPlayerId()) {
-        switch (static_cast<GW::Constants::SkillID>(value)) {
-            case GW::Constants::SkillID::Boon_of_Creation: {
-                hasBoonOfCreation = true;
-                return;
-            }
-        }
-    }
-    GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
-    if (!agent) return;
-    GW::AgentLiving* agentLiving = agent->GetAsAgentLiving();
-    if (!agentLiving) return;
-    switch (agentLiving->allegiance) {
-        case GW::Constants::Allegiance::Enemy: {
-            painfulBondSet.insert(agent_id);
-            return;
-        }
-    }
-}
-
-void RitualistSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t value)
-{
-    if (agent_id == GW::Agents::GetPlayerId()) {
-        switch (static_cast<GW::Constants::SkillID>(value)) {
-            case GW::Constants::SkillID::Boon_of_Creation: {
-                hasBoonOfCreation = false;
-                return;
-            }
-        }
-    }
-    GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
-    if (!agent) return;
-    GW::AgentLiving* agentLiving = agent->GetAsAgentLiving();
-    if (!agentLiving) return;
-    switch (agentLiving->allegiance) {
-        case GW::Constants::Allegiance::Enemy: {
-            painfulBondSet.erase(agent_id);
-            return;
-        }
-    }
-}
-
 void RitualistSidekick::HardReset()
 {
-    painfulBondSet.clear();
-    painTarget = std::nullopt;
-    bloodsongTarget = std::nullopt;
-}
-
-void RitualistSidekick::SkillCallback(const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id)
-{
-    GW::Agent* agent = GW::Agents::GetAgentByID(caster_id);
-    if (!agent) return;
-    GW::AgentLiving* agentLiving = agent->GetAsAgentLiving();
-    if (!agentLiving) return;
-    switch (agentLiving->allegiance) {
-        case GW::Constants::Allegiance::Spirit_Pet: {
-            switch (static_cast<GW::Constants::SkillID>(value)) {
-                case GW::Constants::SkillID::Bloodsong_attack: {
-                    bloodsongTarget = target_id;
-                    break;
-                }
-                case GW::Constants::SkillID::Pain_attack: {
-                    painTarget = target_id;
-                    break;
-                }
-                                                        
-            }
-        }
-    }
+    hasLife = false;
+    hasVampirism = false;
+    allyWithCondition = nullptr;
+    deadAlly = nullptr;
 }
