@@ -45,6 +45,7 @@
 #include <Windows/IWindow.h>
 #include <Windows/MaterialsWindow.h>
 #include <Windows/MesmerSidekick.h>
+#include <Windows/MonkSidekick.h>
 #include <Windows/NecromancerSidekick.h>
 #include <Windows/NotePadWindow.h>
 #include <Windows/ObjectiveTimerWindow.h>
@@ -144,6 +145,7 @@ namespace {
         ElementalistSidekick::Instance(),
         NecromancerSidekick::Instance(),
         MesmerSidekick::Instance(),
+        MonkSidekick::Instance(),
         ParagonSidekick::Instance(),
         RangerSidekick::Instance(),
         RitualistSidekick::Instance(),

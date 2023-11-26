@@ -113,12 +113,12 @@ void SidekickWindow::Initialize()
         Log::Info("invite received");
     });
 
-    GW::Chat::RegisterLocalMessageCallback(&ObstructedMessage, [this](GW::HookStatus* status, const int channel, const wchar_t* message) {
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::MessageCore>(&ObstructedMessage, [this](GW::HookStatus* status, GW::Packet::StoC::MessageCore* packet) -> void {
         UNREFERENCED_PARAMETER(status);
-        UNREFERENCED_PARAMETER(channel);
         if (!enabled) return;
-        if (!message) return;
-        if (message[0] == 0x8AB && TIMER_DIFF(timers.obstructedTimer) > 2000) {
+        if (!packet) return;
+        if (packet->message[0] == 0x8AB && TIMER_DIFF(timers.obstructedTimer) > 2000) {
+            Log::Info("Obstructed");
             state = Obstructed; 
             timers.obstructedTimer = TIMER_INIT();
         }
@@ -590,11 +590,16 @@ void SidekickWindow::Update(float delta)
                 break;
             }
             case Obstructed: {
-                if (!sidekick->GetIsMoving() && GW::GetDistance(sidekick->pos, party_leader->pos) > GW::Constants::Range::Adjacent && TIMER_DIFF(timers.followTimer) > 149 + rand() % 100) {
-                    GW::Agents::GoPlayer(party_leader);
+                GW::Agent* target = GW::Agents::GetTarget();
+                if (!sidekick->GetIsMoving() && target && GW::GetDistance(sidekick->pos, target->pos) > GW::Constants::Range::Adjacent && TIMER_DIFF(timers.followTimer) > 149 + rand() % 100) {
+                    GW::Agents::Move(target->pos);
                     timers.followTimer = TIMER_INIT();
                 }
-                if (TIMER_DIFF(timers.obstructedTimer) >= 2000) {
+                if (TIMER_DIFF(timers.obstructedTimer) >= 1000) {
+                    GW::GameThread::Enqueue([]() -> void {
+                        GW::UI::Keypress(GW::UI::ControlAction::ControlAction_CancelAction);
+                        return;
+                    });
                     state = Fighting;
                 }
                 break;
@@ -843,6 +848,7 @@ void SidekickWindow::GenericModifierCallback(uint32_t type, uint32_t caster_id, 
 
 void SidekickWindow::ResetTargets()
 {
+    enemyProximityMap.clear();
     prioritized_target = nullptr;
     called_enemy = nullptr;
     closest_enemy = nullptr;
@@ -950,4 +956,33 @@ void SidekickWindow::CheckStuck() {
     }
 
     return;
+}
+
+void SidekickWindow::CheckForProximity(GW::AgentLiving* agentLiving) {
+    Proximity proximity = { agentLiving->pos, 0, 0, 0 };
+
+    for (auto& it : enemyProximityMap) {
+        if (it.first == agentLiving->agent_id) continue;
+        if (proximity.position.zplane != it.second.position.zplane) continue;
+        float distance = GW::GetSquareDistance(proximity.position, it.second.position);
+        if (distance <= GW::Constants::SqrRange::Adjacent) {
+            proximity.adjacent += 1;
+            proximity.nearby += 1;
+            proximity.area += 1;
+            it.second.adjacent += 1;
+            it.second.nearby += 1;
+            it.second.area += 1;
+        }
+        else if (distance <= GW::Constants::SqrRange::Nearby) {
+            proximity.nearby += 1;
+            proximity.area += 1;
+            it.second.nearby += 1;
+            it.second.area += 1;
+        }
+        else if (distance <= GW::Constants::SqrRange::Area) {
+            proximity.area += 1;
+            it.second.area += 1;
+        }
+    }
+    enemyProximityMap.insert_or_assign(agentLiving->agent_id, proximity);
 }
