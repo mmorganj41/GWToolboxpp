@@ -174,24 +174,20 @@ void SidekickWindow::Update(float delta)
 
         if (party_ids.empty()) {
             GW::PartyInfo* party = GW::PartyMgr::GetPartyInfo();
-            if (!party)
-                return;
+            if (!party) return;
             if (party->players.valid())
                 for (size_t i = 0; i < party->players.size(); i++) {
-                    if (!party->players[i].login_number)
-                        continue;
+                    if (!party->players[i].login_number) continue;
                     party_ids.insert(GW::Agents::GetAgentIdByLoginNumber(party->players[i].login_number));
                 }
             if (party->heroes.valid())
                 for (size_t i = 0; i < party->heroes.size(); i++) {
-                    if (!party->heroes[i].agent_id)
-                        continue;
+                    if (!party->heroes[i].agent_id) continue;
                     party_ids.insert(party->heroes[i].agent_id);
                 }
             if (party->henchmen.valid())
                 for (size_t i = 0; i < party->henchmen.size(); i++) {
-                    if (!party->henchmen[i].agent_id)
-                        continue;
+                    if (!party->henchmen[i].agent_id) continue;
                     party_ids.insert(party->henchmen[i].agent_id);
                 }
             return;
@@ -269,8 +265,7 @@ void SidekickWindow::Update(float delta)
         GW::Agent* leader = GW::Agents::GetAgentByID(party_leader_id);
         GW::AgentLiving* party_leader = leader ? leader->GetAsAgentLiving() : nullptr;
 
-        if (!party_leader )
-            return;
+        if (!party_leader) return;
 
         if (sidekick->GetIsKnockedDown() || !sidekick->GetIsAlive()) {
             CantAct();
@@ -280,16 +275,14 @@ void SidekickWindow::Update(float delta)
 
         GW::AgentArray* agent_array = GW::Agents::GetAgentArray();
 
-        if (!agent_array)
-            return;
+        if (!agent_array) return;
 
         CustomLoop(sidekick);
 
         bool still_in_combat = false;
 
         for (auto* a : *agent_array) {
-            if (!a)
-                continue;
+            if (!a) continue;
             GW::AgentLiving* agentLiving = a->GetAsAgentLiving();
 
             if (agentLiving) {
@@ -310,7 +303,7 @@ void SidekickWindow::Update(float delta)
                     }
                     case GW::Constants::Allegiance::Ally_NonAttackable: {
                         if (agentLiving->agent_id && party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive()) {
-                            if (agentLiving->GetIsAttacking() && ((state == Fighting && agentLiving->agent_id == party_leader_id) || agentLiving->agent_id != party_leader_id)) {
+                            if (agentLiving->GetIsAttacking() && (((state == Fighting || called_enemy) && agentLiving->agent_id == party_leader_id) || agentLiving->agent_id != party_leader_id)) {
                                 if (!starting_combat) {
                                     starting_combat = true;
                                     timers.changeStateTimer = TIMER_INIT();
@@ -343,6 +336,10 @@ void SidekickWindow::Update(float delta)
                     return;
                 }
             }
+        }
+        if (checking_agents) {
+            checking_agents = std::nullopt;
+            FinishedCheckingAgentsCallback();
         }
 
         if (sidekick->GetIsMoving()) {
@@ -657,6 +654,7 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
         };
         case GenericValueID::effect_on_agent:
         case GenericValueID::effect_on_target: {
+            Log::Info("Effect %d on target %d", value, target_id);
             EffectOnTarget(*target_id, value);
             break;
         }
@@ -897,8 +895,8 @@ void SidekickWindow::StartCombat()
 }
 
 void SidekickWindow::EffectOnTarget(uint32_t target, const uint32_t value) {
-    UNREFERENCED_PARAMETER(target);
     UNREFERENCED_PARAMETER(value);
+    UNREFERENCED_PARAMETER(target);
     return;
 }
 
@@ -949,5 +947,10 @@ void SidekickWindow::CheckStuck() {
         }
     }
 
+    return;
+}
+
+void SidekickWindow::FinishedCheckingAgentsCallback()
+{
     return;
 }

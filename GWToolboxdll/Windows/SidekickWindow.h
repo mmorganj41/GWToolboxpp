@@ -58,6 +58,8 @@ public:
     State state = Following;
     bool using_skill = false;
     bool starting_combat = false;
+    std::optional<GW::Constants::SkillID> checking_agents = std::nullopt;
+
     float area_of_effect = 0;
     std::optional<GW::GamePos> group_center = std::nullopt;
     std::optional<GW::GamePos> kiting_location = std::nullopt;
@@ -93,12 +95,13 @@ public:
     bool isUncentered(GW::AgentLiving* agentLiving);
 
     virtual void HardReset();
+    virtual void ResetTargetValues();
     virtual void Setup();
     virtual void CustomLoop(GW::AgentLiving* sidekick);
+    virtual void FinishedCheckingAgentsCallback();
     virtual void CantAct();
     virtual void WhenKiting();
     virtual void TargetSwitchEffect();
-    virtual void ResetTargetValues();
     virtual void AddEffectCallback(const uint32_t agent_id, const uint32_t value);
     virtual void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value);
     virtual void SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt);

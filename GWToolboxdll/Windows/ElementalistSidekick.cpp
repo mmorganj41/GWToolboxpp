@@ -35,5 +35,72 @@
 #include <Logger.h>
 
 namespace {
+    
 } // namespace
 
+bool ElementalistSidekick::UseCombatSkill() {
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    if (!skillbar) {
+        return false;
+    }
+
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
+
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (isCasting(sidekickLiving)) {
+        return false;
+    }
+
+    GW::SkillbarSkill auraOfRestoration = skillbar->skills[6];
+    GW::Skill* auraOfRestorationInfo = GW::SkillbarMgr::GetSkillConstantData(auraOfRestoration.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
+        if (UseSkillWithTimer(6))
+            return true;
+    };
+
+    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
+
+    if (!target)
+        return false;
+
+    GW::SkillbarSkill flare = skillbar->skills[0];
+    GW::Skill* flareInfo = GW::SkillbarMgr::GetSkillConstantData(flare.skill_id);
+    if (flareInfo && CanUseSkill(flare, flareInfo, cur_energy)) {
+        if (UseSkillWithTimer(0))
+            return true;
+    };  
+
+    return false;
+}
+
+bool ElementalistSidekick::SetUpCombatSkills(uint32_t called_target) {
+    UNREFERENCED_PARAMETER(called_target);
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    if (!skillbar) {
+        return false;
+    }
+
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
+
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (isCasting(sidekickLiving)) {
+        return false;
+    }
+
+    GW::SkillbarSkill auraOfRestoration = skillbar->skills[6];
+    GW::Skill* auraOfRestorationInfo = GW::SkillbarMgr::GetSkillConstantData(auraOfRestoration.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
+        if (UseSkillWithTimer(6))
+            return true;
+    };
+
+    return false;
+}

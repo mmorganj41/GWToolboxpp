@@ -21,5 +21,7 @@ public:
 
     const char* Name() const override { return "Elementalist"; }
 
+    bool UseCombatSkill() override;      // For using skills in combat
+    bool SetUpCombatSkills(uint32_t called_target_id) override;   // For setting up skills for combat
 private:
 };
