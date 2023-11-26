@@ -32,6 +32,13 @@ public:
         clock_t stuckTimer;
     };
 
+    struct Proximity {
+        GW::GamePos position;
+        uint32_t adjacent;
+        uint32_t nearby;
+        uint32_t area;
+    };
+
     enum State
     {
         Following,
@@ -64,6 +71,8 @@ public:
     std::optional<GW::GamePos> group_center = std::nullopt;
     std::optional<GW::GamePos> kiting_location = std::nullopt;
     std::optional<GW::GamePos> epicenter = std::nullopt;
+
+    std::unordered_map<GW::AgentID, Proximity> enemyProximityMap = {};
 
     std::unordered_set<uint32_t> party_ids = {};
 
