@@ -80,20 +80,10 @@ bool RangerSidekick::UseCombatSkill() {
 
     float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
 
-    GW::BuffArray* buffs = GW::Effects::GetPlayerBuffs();
 
     GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
     if (cur_energy > 4 && !togetherAsOne.GetRecharge()) {
-        bool hasTogether = false;
-
-        if (buffs && buffs->size()) {
-            for (size_t i = 0; i < buffs->size(); i++) {
-                if (buffs->at(i).skill_id == GW::Constants::SkillID::Together_as_one) {
-                    hasTogether = true;
-                }
-            }
-        }
-        if (!hasTogether) {
+        if (GW::Effects::GetPlayerBuffBySkillId(togetherAsOne.skill_id)) {
             if (UseSkillWithTimer(4)) return true;
         }
     }
@@ -126,7 +116,7 @@ bool RangerSidekick::UseCombatSkill() {
             }
 
             GW::SkillbarSkill brutalStrike = skillbar->skills[1];
-            if (target->hp <= .6 && cur_energy > 4 && !brutalStrike.GetRecharge()) {
+            if (target->hp < .5 && cur_energy > 4 && !brutalStrike.GetRecharge()) {
                 if (UseSkillWithTimer(1)) {
                     pet_attack_finished = false;
                     return true;
@@ -174,6 +164,13 @@ bool RangerSidekick::UseOutOfCombatSkill() {
     }
 
      float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+     GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
+     if (lowest_health_ally && lowest_health_ally->hp < .5 && cur_energy >= 4 && !togetherAsOne.GetRecharge()) {
+        if (GW::Effects::GetPlayerBuffBySkillId(togetherAsOne.skill_id)) {
+            if (UseSkillWithTimer(4)) return true;
+        }
+     }
 
      if (pet && pet->GetIsAlive()) {
         GW::SkillbarSkill callOfHaste = skillbar->skills[5];
@@ -233,20 +230,9 @@ bool RangerSidekick::SetUpCombatSkills(uint32_t called_target_id) {
 
     float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
 
-    GW::BuffArray* buffs = GW::Effects::GetPlayerBuffs();
-
     GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
     if (cur_energy >= 4 && !togetherAsOne.GetRecharge()) {
-        bool hasTogether = false;
-
-        if (buffs && buffs->size()) {
-            for (size_t i = 0; i < buffs->size(); i++) {
-                if (buffs->at(i).skill_id == GW::Constants::SkillID::Together_as_one) {
-                    hasTogether = true;
-                }
-            }
-        }
-        if (!hasTogether) {
+        if (GW::Effects::GetPlayerBuffBySkillId(togetherAsOne.skill_id)) {
             if (UseSkillWithTimer(4))
                 return true;
         }

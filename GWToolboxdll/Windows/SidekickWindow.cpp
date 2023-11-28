@@ -41,6 +41,7 @@ namespace {
     InventoryManager inventory_manager;
     bool combat_start = false;
     bool triggered_move = false;
+    bool reposition = false;
 } // namespace
 
 bool SidekickWindow::GetEnabled() { return enabled; }
@@ -92,19 +93,6 @@ void SidekickWindow::Initialize()
         GenericValueCallback(value_id, isSwapped ? target_id : caster_id, value, isSwapped ? caster_id : target_id);
     });
 
-        GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AddEffect>(&AddEffect, [this](GW::HookStatus* status, GW::Packet::StoC::AddEffect* packet) -> void {
-        UNREFERENCED_PARAMETER(status);
-        if (!enabled) return;
-
-        AddEffectTargetCallback(packet);
-    });
-
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::RemoveEffect>(&RemoveEffect, [this](GW::HookStatus* status, GW::Packet::StoC::RemoveEffect* packet) -> void {
-        UNREFERENCED_PARAMETER(status);
-        UNREFERENCED_PARAMETER(packet);
-        if (!enabled) return;
-    });
-
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::PartyInviteReceived_Create>(&PartyInvite, [this](GW::HookStatus* status, GW::Packet::StoC::PartyInviteReceived_Create* packet) -> void {
         UNREFERENCED_PARAMETER(status);
         if (!enabled) return;
@@ -121,6 +109,9 @@ void SidekickWindow::Initialize()
             Log::Info("Obstructed");
             state = Obstructed; 
             timers.obstructedTimer = TIMER_INIT();
+        }
+        else if (packet->message[0] == 0x793) {
+            no_combat = !no_combat;
         }
     });
 
@@ -286,6 +277,7 @@ void SidekickWindow::Update(float delta)
             GW::AgentLiving* agentLiving = a->GetAsAgentLiving();
 
             if (agentLiving) {
+                if (GW::GetDistance(sidekick->pos, agentLiving->pos) > GW::Constants::Range::Spirit) continue;
                 switch (agentLiving->allegiance) {
                     case GW::Constants::Allegiance::Enemy: {
                         if (!agentLiving->GetIsAlive()) continue;
@@ -355,7 +347,7 @@ void SidekickWindow::Update(float delta)
                 still_in_combat = true;
             }
 
-            if (starting_combat && still_in_combat && TIMER_DIFF(timers.changeStateTimer) > 250 && GW::GetDistance(sidekick->pos, party_leader->pos) <= GW::Constants::Range::Spellcast * 3 / 2) {
+            if (starting_combat && still_in_combat && TIMER_DIFF(timers.changeStateTimer) > 250 && !no_combat && GW::GetDistance(sidekick->pos, party_leader->pos) <= GW::Constants::Range::Spellcast * 3 / 2) {
                 starting_combat = false;
                 timers.changeStateTimer = TIMER_INIT();
                 Log::Info("Entering combat...");
@@ -379,7 +371,7 @@ void SidekickWindow::Update(float delta)
                 timers.changeStateTimer = TIMER_INIT();
             }
 
-            if ((!still_in_combat && TIMER_DIFF(timers.changeStateTimer) > 250) || GW::GetDistance(sidekick->pos, party_leader->pos) > GW::Constants::Range::Spellcast * 3 / 2) {
+            if (state == Fighting && (!still_in_combat && TIMER_DIFF(timers.changeStateTimer) > 250) || no_combat || GW::GetDistance(sidekick->pos, party_leader->pos) > GW::Constants::Range::Spellcast * 3 / 2) {
                 starting_combat = false;
                 state = Following;
                 timers.changeStateTimer = TIMER_INIT();
@@ -407,31 +399,28 @@ void SidekickWindow::Update(float delta)
 
                 uint32_t called_target = info->players[0].calledTargetId;
 
-                if (closest_enemy) {
-                    if (GW::GetSquareDistance(sidekick->pos, closest_enemy->pos) < GW::Constants::SqrRange::Earshot || GW::GetSquareDistance(party_leader->pos, closest_enemy->pos) < GW::Constants::SqrRange::Earshot) {
-                        if (!starting_combat) {
-                            starting_combat = true;
-                            timers.changeStateTimer = TIMER_INIT();
-                        }
-                        still_in_combat = true;
-                    }
-                }
-
                 if (called_target && SetUpCombatSkills(called_target)) {
                     return;
                 }
 
                 if (UseOutOfCombatSkill()) 
                     return;
-              
 
                 const float distance = GW::GetDistance(sidekick->pos, party_leader->pos);
                 if  (distance > GW::Constants::Range::Adjacent && TIMER_DIFF(timers.followTimer) > 149 + rand() % 100)
                 {
-                    if (!sidekick->GetIsMoving() || distance > GW::Constants::Range::Earshot)
-                    GW::Agents::GoPlayer(party_leader);
-                    CheckStuck();
-                    timers.followTimer = TIMER_INIT();
+                    if (!sidekick->GetIsMoving() || distance > GW::Constants::Range::Earshot) {
+                        GW::Agents::GoPlayer(party_leader);
+                        reposition = true;
+                        CheckStuck();
+                        timers.followTimer = TIMER_INIT();
+                    }
+                }
+                else if (distance <= GW::Constants::Range::Adjacent && reposition && !party_leader->GetIsMoving()) {
+                    if (!isCasting(sidekick)) {
+                        reposition = false;
+                        GW::Agents::Move(CalculateInitialPosition(party_leader->pos, *group_center, sidekick_position, GW::Constants::Range::Adjacent / 2));
+                    }
                 }
                 break;
             }
@@ -631,6 +620,10 @@ void SidekickWindow::Draw(IDirect3DDevice9* pDevice)
 
 void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id)
 {
+    UNREFERENCED_PARAMETER(value_id);
+    UNREFERENCED_PARAMETER(caster_id);
+    UNREFERENCED_PARAMETER(value);
+    UNREFERENCED_PARAMETER(target_id);
 
     using namespace GW::Packet::StoC;
 
@@ -642,7 +635,7 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
     switch (value_id) {
         case GenericValueID::skill_damage: {
             GW::Skill* skill_info = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(value));
-            if (skill_info && (skill_info->aoe_range > 0 || skill_info->skill_id == GW::Constants::SkillID::Ray_of_Judgment) && (skill_info->duration0 > 0 || target_id != playerId))
+            if (skill_info && (skill_info->aoe_range > 0 || skill_info->skill_id == GW::Constants::SkillID::Ray_of_Judgment || skill_info->skill_id == GW::Constants::SkillID::Flare) && (skill_info->duration0 > 0 && skill_info->skill_id != GW::Constants::SkillID::Ignite_Arrows || target_id != playerId))
                 {
                 if (!shouldInputScatterMove && TIMER_DIFF(timers.scatterTimer) > 2000) {
                     GW::Agent* sidekick = GW::Agents::GetPlayer();
@@ -659,7 +652,6 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
         };
         case GenericValueID::effect_on_agent:
         case GenericValueID::effect_on_target: {
-            Log::Info("Effect %d on target %d", value, target_id);
             EffectOnTarget(*target_id, value);
             break;
         }
@@ -688,16 +680,23 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
             if (caster_id == playerId) {
                 timers.lastInteract = TIMER_INIT();
             }
+            SkillCastScatter(caster_id, value, target_id);
             [[fallthrough]];
         }
         case GenericValueID::instant_skill_activated: {
             SkillCallback(value_id, caster_id, value, target_id);
             break;
         }
-         case GenericValueID::skill_stopped:
-         case GenericValueID::skill_finished:
+        case GenericValueID::skill_finished:
+        case GenericValueID::attack_skill_finished: {
+            SkillCastFinishScatter(caster_id);
+            [[fallthrough]];
+        }
          case GenericValueID::attack_skill_stopped:
-         case GenericValueID::attack_skill_finished:  {
+         case GenericValueID::skill_stopped:
+         {
+            if (scatterCastMap.contains(caster_id)) 
+                scatterCastMap.erase(caster_id);
             SkillFinishCallback(caster_id);
             break;
         }
@@ -705,28 +704,51 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
     }
 }
 
-void SidekickWindow::AddEffectTargetCallback(GW::Packet::StoC::AddEffect* packet) {
-    if (!packet->agent_id) return;
-    if (shouldInputScatterMove) return;
-    GW::Agent* target = GW::Agents::GetAgentByID(packet->agent_id);
+void SidekickWindow::SkillCastScatter(uint32_t caster, uint32_t value, std::optional<uint32_t> target) {
+    if (!target) return;
+    GW::Agent* casterAgent = GW::Agents::GetAgentByID(caster);
+    GW::AgentLiving* casterLiving = casterAgent ? casterAgent->GetAsAgentLiving() : nullptr;
+
+    if (!casterLiving || casterLiving->allegiance != GW::Constants::Allegiance::Enemy) return;
+
+    GW::Agent* targetAgent = GW::Agents::GetAgentByID(*target);
     GW::Agent* sidekick = GW::Agents::GetPlayer();
-    if (!target || !sidekick) return;
-    GW::AgentLiving* targetLiving = target->GetAsAgentLiving();
+    if (!targetAgent || !sidekick) return;
+    GW::AgentLiving* targetLiving = targetAgent->GetAsAgentLiving();
     if (!targetLiving) return;
-    if (!packet->skill_id) return;
-    if (targetLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet || targetLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || targetLiving->allegiance == GW::Constants::Allegiance::Minion) return;
-    GW::Skill* skill_info = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(packet->skill_id));
-    if (!(skill_info && (skill_info->aoe_range > 0 || skill_info->skill_id == GW::Constants::SkillID::Ray_of_Judgment) && (skill_info->duration0 > 0 || sidekick->agent_id != target->agent_id))) return;
-    if (GW::GetDistance(target->pos, sidekick->pos) > skill_info->aoe_range || target->pos.zplane != sidekick->pos.zplane) return;
-    if (state != Scattering && TIMER_DIFF(timers.scatterTimer > 3000)) {
-        area_of_effect = 50.0f + std::max(skill_info->aoe_range, GW::Constants::Range::Adjacent);
-        epicenter = target->pos; 
-        shouldInputScatterMove = true;
-        timers.scatterTimer = TIMER_INIT();
-        Log::Info("Scattering due to cast.");
-        state = Scattering;
+    if (!(target == sidekick->agent_id || targetLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet || targetLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || targetLiving->allegiance == GW::Constants::Allegiance::Minion)) return;
+    GW::Skill* skill_info = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(value));
+    if (!(skill_info && (skill_info->aoe_range >= GW::Constants::Range::Adjacent / 2 || skill_info->skill_id == GW::Constants::SkillID::Ray_of_Judgment || skill_info->skill_id == GW::Constants::SkillID::Flare) &&
+          (skill_info->duration0 > 0 || sidekick->agent_id != target)
+        ))
+        return;
+
+    SkillActivationPacket packet = {skill_info->skill_id, targetLiving->agent_id};
+
+    scatterCastMap.insert_or_assign(caster, packet);
+}
+
+void SidekickWindow::SkillCastFinishScatter(uint32_t caster) {
+    if (scatterCastMap.contains(caster)) {
+        SkillActivationPacket packet = scatterCastMap[caster];
+        GW::Agent* targetAgent = GW::Agents::GetAgentByID(packet.target);
+        GW::AgentLiving* sidekick = GW::Agents::GetCharacter();
+        if (!shouldInputScatterMove && targetAgent && sidekick) {
+            GW::Skill* skill_info = GW::SkillbarMgr::GetSkillConstantData(packet.skill);
+            float aoe_range = std::max(skill_info->aoe_range, GW::Constants::Range::Adjacent);
+            if (GW::GetDistance(targetAgent->pos, sidekick->pos) <= aoe_range && targetAgent->pos.zplane == sidekick->pos.zplane && state != Scattering && TIMER_DIFF(timers.scatterTimer > 3000)) {
+                area_of_effect = 50.0f + aoe_range;
+                epicenter = targetAgent->pos;
+                shouldInputScatterMove = true;
+                timers.scatterTimer = TIMER_INIT();
+                Log::Info("Scattering due to cast.");
+                state = Scattering;
+            }
+        }
+        scatterCastMap.erase(caster);
     }
 }
+
 
  void SidekickWindow::OnServerPing(uint32_t packetPing)
  {
@@ -763,7 +785,7 @@ float SidekickWindow::CalculateAngleToMoveAway(GW::GamePos position_away, GW::Ga
     return (angleAwayFromEpicenter - angleAwayFromGroup * percentOfRadius) / 2;
 }
 
-GW::GamePos SidekickWindow::CalculateInitialPosition(GW::GamePos player_position, GW::GamePos group_position, size_t idx) {
+GW::GamePos SidekickWindow::CalculateInitialPosition(GW::GamePos player_position, GW::GamePos group_position, size_t idx, float distance) {
     if (player_position.zplane != group_position.zplane || idx == 0) {
         return group_position;
     }
@@ -772,7 +794,7 @@ GW::GamePos SidekickWindow::CalculateInitialPosition(GW::GamePos player_position
 
     const float new_angle = player_angle + IM_PI/2 + idx * IM_PI/4;
     
-    GW::GamePos new_position = { (group_position.x + player_position.x) / 2 + GW::Constants::Range::Area * std::cosf(new_angle), (group_position.y + player_position.y) / 2 + GW::Constants::Range::Area * std::sinf(new_angle), group_position.zplane };
+    GW::GamePos new_position = { (group_position.x + player_position.x) / 2 + distance * std::cosf(new_angle), (group_position.y + player_position.y) / 2 + distance * std::sinf(new_angle), group_position.zplane };
 
     return new_position;
 }
@@ -912,8 +934,8 @@ void SidekickWindow::CustomLoop(GW::AgentLiving* sidekick)
     return;
 }
 
-bool SidekickWindow::UseSkillWithTimer(uint32_t slot, uint32_t target) {
-    if (TIMER_DIFF(timers.skillTimers[slot]) < 500) return false;
+bool SidekickWindow::UseSkillWithTimer(uint32_t slot, uint32_t target, int32_t time) {
+    if (TIMER_DIFF(timers.skillTimers[slot]) < time) return false;
 
     timers.skillTimers[slot] = TIMER_INIT();
     GW::SkillbarMgr::UseSkill(slot, target);
@@ -988,4 +1010,14 @@ void SidekickWindow::CheckForProximity(GW::AgentLiving* agentLiving) {
         }
     }
     enemyProximityMap.insert_or_assign(agentLiving->agent_id, proximity);
+}
+
+GW::Effect* SidekickWindow::GetAgentEffectBySkillId(GW::AgentID agent_id, GW::Constants::SkillID skill_id)
+{
+    auto* effects = GW::Effects::GetAgentEffects(agent_id);
+    if (!effects) return nullptr;
+    for (auto& effect : *effects) {
+        if (effect.skill_id == skill_id) return &effect;
+    }
+    return nullptr;
 }

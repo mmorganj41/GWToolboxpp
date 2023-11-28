@@ -70,6 +70,7 @@ private:
     GW::AgentLiving* enchantedEnemy = nullptr;
     std::set<uint32_t> mesmerEffectSet = {};
 
+    std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
     std::unordered_map<uint32_t, uint8_t> hexedAllies = {};
     std::unordered_map<GW::AgentID, SkillInfo> active_skills;
     std::unordered_map<GW::AgentID, float> modified_cast_times;

@@ -27,11 +27,14 @@ public:
     bool UseCombatSkill() override;
 
     void StopCombat() override;
+    void StartCombat() override;
 
     void HardReset() override;
+    void ResetTargetValues() override;
     void CustomLoop(GW::AgentLiving* sidekick) override;
     void FinishedCheckingAgentsCallback() override;
     void SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt) override;
+    void SkillFinishCallback(const uint32_t caster_id);
     void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
 
@@ -39,5 +42,7 @@ private:
 
     std::optional<GW::GamePos> bloodBondCenter = std::nullopt;
     std::unordered_map<GW::AgentID, SkillDuration> bloodBondMap = {};
+    std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
+    GW::AgentLiving* hexedAlly = nullptr;
 
 };

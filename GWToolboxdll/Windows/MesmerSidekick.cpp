@@ -36,6 +36,19 @@
 
 namespace {
     int min_reaction_time = 25;
+    std::unordered_set<GW::Constants::SkillID> ignored_skills = {
+        GW::Constants::SkillID::Anguish_attack,
+        GW::Constants::SkillID::Bloodsong_attack,
+        GW::Constants::SkillID::Disenchantment_attack,
+        GW::Constants::SkillID::Dissonance_attack,
+        GW::Constants::SkillID::Gaze_of_Fury_attack,
+        GW::Constants::SkillID::Pain_attack,
+        GW::Constants::SkillID::Pain_attack_Signet_of_Spirits,
+        GW::Constants::SkillID::Pain_attack_Signet_of_Spirits1,
+        GW::Constants::SkillID::Pain_attack_Signet_of_Spirits2,
+        GW::Constants::SkillID::Shadowsong_attack,
+        GW::Constants::SkillID::Vampirism_attack,
+        GW::Constants::SkillID::Wanderlust_attack};
 } // namespace
 
 bool MesmerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
@@ -94,13 +107,17 @@ bool MesmerSidekick::UseCombatSkill()
 
 
         if (TIMER_DIFF(currentInterruptSkill.reaction_timer) >= currentInterruptSkill.reaction_time - static_cast<int>(ping)) {
-            if (UseSkillWithTimer(*currentInterruptSkill.interruptSkill, currentInterruptSkill.target_id)) {
+            int casting_timer = TIMER_DIFF(currentInterruptSkill.cast_start);
+            int total_casting = static_cast<int32_t>(currentInterruptSkill.cast_time) - 250 * fast_casting_activation_array[fastCasting] / 100 ;
+            if (casting_timer > total_casting) {
+                Log::Info("Past use %d / %d", casting_timer, total_casting);
+                ResetReaction();
+            }
+            else if (UseSkillWithTimer(*currentInterruptSkill.interruptSkill, currentInterruptSkill.target_id), 50) {
                 Log::Info("Interrupting");
                 ResetReaction();
                 return true;
             }
-            Log::Info("Past use");
-            ResetReaction();
         } 
     }
     else {
@@ -181,6 +198,7 @@ void MesmerSidekick::HardReset()
     hexedAllies.clear();
     shatterDelusionsTarget = nullptr;
     ResetReaction();
+    cureHexMap.clear();
 }
 
 void MesmerSidekick::ResetTargetValues() {
@@ -199,7 +217,13 @@ void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
             GW::Agent* agent = GW::Agents::GetAgentByID(it);
             GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
             if (!agentLiving) continue;
-            if (agentLiving->GetIsHexed()) hexedAllies[it] = 0;
+            if (agentLiving->GetIsHexed()) {
+                bool already_casting = false;
+                for (auto& hexPair : cureHexMap) {
+                    if (hexPair.second == agentLiving->agent_id) already_casting = true;
+                }
+                if (!already_casting) hexedAllies[it] = 0;
+            }
         }
     }
 
@@ -214,91 +238,98 @@ void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
         GW::SkillbarSkill powerDrain = skillbar->skills[4];
         GW::SkillbarSkill cryOfFrustration = skillbar->skills[6];
 
-        bool canTease = !overload.GetRecharge() && cur_energy >= 5 && sidekick->max_energy - cur_energy >= 10;
-        bool canOverload = !overload.GetRecharge() && cur_energy >= 5;
-        bool canCryOfPain = !cryOfPain.GetRecharge() && cur_energy >= 10;
-        bool canPowerDrain = !powerDrain.GetRecharge() && cur_energy >= 5 && sidekick->max_energy-cur_energy >= 15;
-        bool canCryOfFrustration = !cryOfFrustration.GetRecharge() && cur_energy >= 10;
-        
-        std::optional<SkillInfo> teaseSkill = std::nullopt;
-        std::optional<SkillInfo> overloadSkill = std::nullopt;
-        std::optional<SkillInfo> cryOfPainSkill = std::nullopt;
-        std::optional<SkillInfo> powerDrainSkill = std::nullopt;
-        std::optional<SkillInfo> cryOfFrustrationSkill = std::nullopt;
-        std::optional<SkillInfo> prioritizedSkill = std::nullopt;
+bool canTease = !overload.GetRecharge() && cur_energy >= 5 && sidekick->max_energy - cur_energy >= 10;
+bool canOverload = !overload.GetRecharge() && cur_energy >= 5;
+bool canCryOfPain = !cryOfPain.GetRecharge() && cur_energy >= 10;
+bool canPowerDrain = !powerDrain.GetRecharge() && cur_energy >= 5 && sidekick->max_energy - cur_energy >= 15;
+bool canCryOfFrustration = !cryOfFrustration.GetRecharge() && cur_energy >= 10;
 
-        if (!canOverload && !canPowerDrain && !canCryOfPain && !canCryOfFrustration && !canTease) return;
+std::optional<SkillInfo> teaseSkill = std::nullopt;
+std::optional<SkillInfo> overloadSkill = std::nullopt;
+std::optional<SkillInfo> cryOfPainSkill = std::nullopt;
+std::optional<SkillInfo> powerDrainSkill = std::nullopt;
+std::optional<SkillInfo> cryOfFrustrationSkill = std::nullopt;
+std::optional<SkillInfo> prioritizedSkill = std::nullopt;
 
-        const int after_cast_two_cast = 750 + 250 * fast_casting_activation_array[fastCasting] + ping;
+if (!canOverload && !canPowerDrain && !canCryOfPain && !canCryOfFrustration && !canTease) return;
 
-        for (auto& it : active_skills) {
-            const auto caster_agent = GW::Agents::GetAgentByID(it.second.caster_id);
-            const auto caster = caster_agent ? caster_agent->GetAsAgentLiving() : nullptr;
+const int after_cast_two_cast = 750 + 250 * fast_casting_activation_array[fastCasting] + ping;
 
-            if (!caster) {
-                continue;
-            }
+for (auto& it : active_skills) {
+    const auto caster_agent = GW::Agents::GetAgentByID(it.second.caster_id);
+    const auto caster = caster_agent ? caster_agent->GetAsAgentLiving() : nullptr;
 
-            if (caster->GetIsDead()) {
-                active_skills.erase(it.first);
-                continue;
-            }
+    if (!caster) {
+        continue;
+    }
 
-            int32_t free_time = it.second.cast_time - 250 * fast_casting_activation_array[fastCasting] / 100 - 2 * ping - std::max(0L, min_reaction_time - TIMER_DIFF(it.second.cast_start));
+    if (caster->GetIsDead()) {
+        active_skills.erase(it.first);
+        continue;
+    }
 
-            int32_t free_time_remaining = free_time - TIMER_DIFF(it.second.cast_start);
+    int32_t free_time = it.second.cast_time - 250 * fast_casting_activation_array[fastCasting] / 100 - 2 * ping - std::max(0L, min_reaction_time - TIMER_DIFF(it.second.cast_start));
 
-            if (free_time_remaining < 0 || free_time - min_reaction_time < 0) {
-                active_skills.erase(it.first);
-                continue;
-            }
+    int32_t free_time_remaining = free_time - TIMER_DIFF(it.second.cast_start);
 
-            if (free_time_remaining >= after_cast_two_cast) {
-                if (!minimum_next_sequence || free_time_remaining - after_cast_two_cast < minimum_next_sequence) minimum_next_sequence = free_time_remaining - after_cast_two_cast;
-                continue;
-            }
-            
-            if (canOverload) {
-                if (!overloadSkill || overloadSkill->priority < it.second.priority) overloadSkill = it.second;                    
-            }
-            if (canPowerDrain && it.second.skill_type == SkillType::SPELL || it.second.skill_type == SkillType::CHANT) {
-                if (!powerDrainSkill || powerDrainSkill->priority < it.second.priority) powerDrainSkill = it.second;                    
-            }
-            if (canTease && it.second.skill_type == SkillType::SPELL) {
-                if (!teaseSkill || teaseSkill->priority < it.second.priority) teaseSkill = it.second;
-            }
+    if (free_time_remaining < 0 || free_time - min_reaction_time < 0) {
+        active_skills.erase(it.first);
+        continue;
+    }
 
-            if (canCryOfPain && mesmerEffectSet.contains(it.first) && caster->GetIsHexed()) {
-                if (!cryOfPainSkill || cryOfPainSkill->priority < it.second.priority) cryOfPainSkill = it.second;                    
-            }
+    bool should_interrupt = true;
 
-            if (canCryOfFrustration && it.second.priority >= 5) {
-                if (!cryOfFrustrationSkill || cryOfFrustrationSkill->priority < it.second.priority) cryOfFrustrationSkill = it.second;                    
-            }
-        }
+    if (free_time_remaining >= after_cast_two_cast) {
+        if (!minimum_next_sequence || free_time_remaining - after_cast_two_cast <minimum_next_sequence) minimum_next_sequence = free_time_remaining - after_cast_two_cast;
+        should_interrupt = false;
+    }
 
-        if (currentInterruptSkill.interruptSkill == std::nullopt) {
-            if (powerDrainSkill) {
-                SetCurrentInterruptSkill(PowerDrain, *powerDrainSkill, minimum_next_sequence);
-            }
-            else if (cryOfPainSkill) {
-                SetCurrentInterruptSkill(CryOfPain, *cryOfPainSkill, minimum_next_sequence);
-            }
-            else if (cryOfFrustrationSkill) {
-                SetCurrentInterruptSkill(CryOfFrustration, *cryOfFrustrationSkill, minimum_next_sequence);
-            }
-            else if (teaseSkill) {
-                SetCurrentInterruptSkill(Tease, *teaseSkill, minimum_next_sequence);
-            }
-            else if (overloadSkill) {
-                SetCurrentInterruptSkill(Overload, *overloadSkill, minimum_next_sequence);
-            }
-        }
-        else if (minimum_next_sequence)
-        {
-            currentInterruptSkill.reaction_time = std::min(*minimum_next_sequence - 50, currentInterruptSkill.reaction_time);
-        }
-    } 
+    if (currentInterruptSkill.interruptSkill != std::nullopt) continue;
+
+    if (canOverload) {
+        if (!overloadSkill || overloadSkill->priority < it.second.priority) overloadSkill = it.second;
+    }
+
+    if (!should_interrupt) continue;
+
+    if (canPowerDrain && it.second.skill_type == SkillType::SPELL || it.second.skill_type == SkillType::CHANT) {
+        if (!powerDrainSkill || powerDrainSkill->priority < it.second.priority) powerDrainSkill = it.second;
+    }
+    if (canTease && it.second.skill_type == SkillType::SPELL) {
+        if (!teaseSkill || teaseSkill->priority < it.second.priority) teaseSkill = it.second;
+    }
+
+    if (canCryOfPain && mesmerEffectSet.contains(it.first) && caster->GetIsHexed()) {
+        if (!cryOfPainSkill || cryOfPainSkill->priority < it.second.priority) cryOfPainSkill = it.second;
+    }
+
+    if (canCryOfFrustration && it.second.priority >= 5) {
+        if (!cryOfFrustrationSkill || cryOfFrustrationSkill->priority < it.second.priority) cryOfFrustrationSkill = it.second;
+    }
+}
+
+if (currentInterruptSkill.interruptSkill == std::nullopt) {
+    if (powerDrainSkill) {
+        SetCurrentInterruptSkill(PowerDrain, *powerDrainSkill, minimum_next_sequence);
+    }
+    else if (cryOfPainSkill) {
+        SetCurrentInterruptSkill(CryOfPain, *cryOfPainSkill, minimum_next_sequence);
+    }
+    else if (cryOfFrustrationSkill) {
+        SetCurrentInterruptSkill(CryOfFrustration, *cryOfFrustrationSkill, minimum_next_sequence);
+    }
+    else if (teaseSkill) {
+        SetCurrentInterruptSkill(Tease, *teaseSkill, minimum_next_sequence);
+    }
+    else if (overloadSkill) {
+        SetCurrentInterruptSkill(Overload, *overloadSkill, minimum_next_sequence);
+    }
+}
+else if (minimum_next_sequence)
+{
+    currentInterruptSkill.reaction_time = std::min(*minimum_next_sequence - 50, currentInterruptSkill.reaction_time);
+}
+    }
 }
 
 void MesmerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id) {
@@ -311,21 +342,45 @@ void MesmerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caste
     float cast_time = modified_cast_times[caster_id];
     modified_cast_times.erase(caster_id);
 
-    if (!(living_agent && living_agent->allegiance == GW::Constants::Allegiance::Enemy))
+    if (!living_agent) return;
+
+    if (living_agent->allegiance != GW::Constants::Allegiance::Enemy) {
+        if (!target_id) return;
+        if (caster_id == GW::Agents::GetPlayerId() || living_agent->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
+
+        GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
+
+        switch (skillId) {
+            case GW::Constants::SkillID::Shatter_Hex:
+            case GW::Constants::SkillID::Cure_Hex: {
+                cureHexMap.insert_or_assign(living_agent->agent_id, *target_id);
+            }
+        }
         return;
-    if (living_agent->GetIsDead())
+    }
+
+    if (living_agent->GetIsDead()) {
         return;
-    if (living_agent->type_map & 0x40000) return;
+    }
+
+    GW::Constants::SkillID skill_id = static_cast<GW::Constants::SkillID>(value);
+
+    if (ignored_skills.contains(skill_id)) {
+        return;
+    }
 
     const GW::Agent* player = GW::Agents::GetPlayer();
-    if (!player)
+    if (!player) {
         return;
+    }
     const float distance = GW::GetDistance(player->pos, living_agent->pos);
 
-    if (distance > GW::Constants::Range::Spellcast * 11 / 10)
+    if (distance > GW::Constants::Range::Spellcast * 11 / 10) {
         return;
+    }
 
-    const auto skill = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(value));
+
+    const auto skill = GW::SkillbarMgr::GetSkillConstantData(skill_id);
 
     SkillType skill_type = SkillType::OTHER;
 
@@ -372,8 +427,14 @@ void MesmerSidekick::SkillFinishCallback(const uint32_t caster_id) {
     const auto agent = GW::Agents::GetAgentByID(caster_id);
     const GW::AgentLiving* living_agent = agent ? agent->GetAsAgentLiving() : nullptr;
 
-    if (!(living_agent && living_agent->allegiance == GW::Constants::Allegiance::Enemy))
+    if (!living_agent) return;
+
+    if (living_agent->allegiance != GW::Constants::Allegiance::Enemy) {
+        if (living_agent->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
+
+        cureHexMap.erase(living_agent->agent_id);
         return;
+    }
 
     active_skills.erase(caster_id);
 }
@@ -507,7 +568,7 @@ void MesmerSidekick::SetCurrentInterruptSkill(InterruptSkill interruptSkill, Ski
     currentInterruptSkill.reaction_timer = TIMER_INIT();
     int free_time = skillInfo.cast_time - 250 * fast_casting_activation_array[fastCasting] / 100 - 2 * ping - std::max(0L, min_reaction_time - TIMER_DIFF(currentInterruptSkill.cast_start));
     if (interruptSkill != Overload) {
-        currentInterruptSkill.reaction_time = free_time > 0 ? -rand() % 50 + free_time - 50 : 0;
+        currentInterruptSkill.reaction_time = free_time > 0 ? -rand() % 50 + 9 / 10 * free_time - 50 : 0;
     }
     else {
         currentInterruptSkill.reaction_time = std::min(min_reaction_time, free_time) - 50;
@@ -539,4 +600,5 @@ void MesmerSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_
 void MesmerSidekick::StopCombat() {
     active_skills.clear();
     mesmerEffectSet.clear();
+    cureHexMap.clear();
 }

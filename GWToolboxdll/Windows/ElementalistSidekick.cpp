@@ -38,6 +38,15 @@ namespace {
     
 } // namespace
 
+bool ElementalistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
+{
+    if (agentLiving->GetIsAlive() && agentLiving->allegiance == GW::Constants::Allegiance::Enemy && playerLiving->pos.zplane == agentLiving->pos.zplane && GW::GetDistance(playerLiving->pos, agentLiving->pos) <= GW::Constants::Range::Spellcast * 6 / 5) {
+        CheckForProximity(agentLiving);
+    }
+
+    return false;
+}
+
 bool ElementalistSidekick::UseCombatSkill() {
     GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
     if (!skillbar) {
@@ -62,6 +71,29 @@ bool ElementalistSidekick::UseCombatSkill() {
             return true;
     };
 
+    GW::SkillbarSkill fireStorm = skillbar->skills[4];
+    GW::Skill* fireStormInfo = GW::SkillbarMgr::GetSkillConstantData(fireStorm.skill_id);
+    if (CanUseSkill(fireStorm, fireStormInfo, cur_energy)) {
+        uint32_t max_proximity = 0;
+        GW::AgentID best_target = 0;
+        for (auto& it : enemyProximityMap) {
+            if (it.second.adjacent > max_proximity) {
+                max_proximity = it.second.adjacent;
+                best_target = it.first;
+            }
+        }
+
+        if (max_proximity > 0 && best_target) {
+            GW::Agent* bestTarget = GW::Agents::GetAgentByID(best_target);
+            GW::AgentLiving* bestLiving = bestTarget ? bestTarget->GetAsAgentLiving() : nullptr;
+            if (bestLiving && !bestLiving->GetIsMoving()) {
+                if (UseSkillWithTimer(4, best_target)) {
+                    return true;
+                }
+            }
+        }
+    }
+
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     if (!target)
@@ -70,7 +102,7 @@ bool ElementalistSidekick::UseCombatSkill() {
     GW::SkillbarSkill flare = skillbar->skills[0];
     GW::Skill* flareInfo = GW::SkillbarMgr::GetSkillConstantData(flare.skill_id);
     if (flareInfo && CanUseSkill(flare, flareInfo, cur_energy)) {
-        if (UseSkillWithTimer(0))
+        if (UseSkillWithTimer(0, target->agent_id))
             return true;
     };  
 

@@ -35,11 +35,18 @@
 #include <Logger.h>
 
 namespace {
+    clock_t hexTimer = 0;
 } // namespace
+
+
+
+
 
 void NecromancerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id) {
     UNREFERENCED_PARAMETER(value_id);
-    if (caster_id == GW::Agents::GetPlayerId() && target_id && static_cast<GW::Constants::SkillID>(value) == GW::Constants::SkillID::Blood_Bond) {
+    if (!target_id) return;
+
+    if (caster_id == GW::Agents::GetPlayerId() && static_cast<GW::Constants::SkillID>(value) == GW::Constants::SkillID::Blood_Bond) {
         GW::Agent* target = GW::Agents::GetAgentByID(*target_id);
         GW::AgentLiving* targetLiving = target ? target->GetAsAgentLiving() : nullptr;
         if (targetLiving) {
@@ -47,16 +54,56 @@ void NecromancerSidekick::SkillCallback(const uint32_t value_id, const uint32_t 
             checking_agents = GW::Constants::SkillID::Blood_Bond;
         }
     }
+    else {
+        GW::Agent* caster = GW::Agents::GetAgentByID(caster_id);
+        GW::AgentLiving* casterLiving = caster ? caster->GetAsAgentLiving() : nullptr;
+
+        if (!casterLiving) return;
+
+        if (caster_id == GW::Agents::GetPlayerId() || casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
+
+            GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
+
+        switch (skillId) {
+            case GW::Constants::SkillID::Shatter_Hex:
+            case GW::Constants::SkillID::Remove_Hex: {
+                cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
+            }
+        }
+    }
 }
+
+void NecromancerSidekick::SkillFinishCallback(const uint32_t caster_id)
+{
+    GW::Agent* caster = GW::Agents::GetAgentByID(caster_id);
+    GW::AgentLiving* casterLiving = caster ? caster->GetAsAgentLiving() : nullptr;
+
+    if (!casterLiving) return;
+
+    if (casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
+
+    cureHexMap.erase(casterLiving->agent_id);
+}
+
 
 bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
     if (checking_agents && bloodBondCenter && agentLiving->allegiance == GW::Constants::Allegiance::Enemy && agentLiving->GetIsAlive()) {
         if (bloodBondCenter->zplane == agentLiving->pos.zplane && GW::GetSquareDistance(*bloodBondCenter, agentLiving->pos) <= GW::Constants::SqrRange::Adjacent) {
-            SkillDuration skillDuration = {TIMER_INIT(), static_cast<uint32_t>(agentLiving->GetHasBossGlow() ? 2500 : 5000)};
+            SkillDuration skillDuration = {TIMER_INIT(), static_cast<uint32_t>(agentLiving->GetHasBossGlow() ? 4000 : 8000)};
             bloodBondMap.insert_or_assign(agentLiving->agent_id, skillDuration);
         }
+    }
+    else if (party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive() && agentLiving->GetIsHexed()) {
+        if (hexTimer == 0) hexTimer = TIMER_INIT();
+        bool already_casting = false;
+        if (TIMER_DIFF(hexTimer) > 40 + static_cast<int32_t>(ping)) {
+            for (auto& it : cureHexMap) {
+                if (it.second == agentLiving->agent_id) already_casting = true;
+            }
+        }
+        if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
     }
 
     return false;
@@ -107,6 +154,18 @@ bool NecromancerSidekick::UseCombatSkill() {
         return false;
     }
 
+    if (hexedAlly) {
+        GW::SkillbarSkill cureHex = skillbar->skills[4];
+        GW::Skill* cureHexInfo = GW::SkillbarMgr::GetSkillConstantData(cureHex.skill_id);
+        if (CanUseSkill(cureHex, cureHexInfo, cur_energy)) {
+            if (UseSkillWithTimer(4, hexedAlly->agent_id)) {
+                hexTimer = 0;
+                return true;
+            }
+        }
+    }
+
+
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     if (!target) return false;
@@ -138,11 +197,24 @@ void NecromancerSidekick::HardReset() {
     bloodBondCenter = std::nullopt;
     bloodBondMap.clear();
     necromancerEffectSet.clear();
+    hexedAlly = nullptr;
+    cureHexMap.clear();
 }
 
 void NecromancerSidekick::StopCombat() {
     bloodBondMap.clear();
     necromancerEffectSet.clear();
+    cureHexMap.clear();
+}
+
+void NecromancerSidekick::ResetTargetValues()
+{
+    hexedAlly = nullptr;
+}
+
+void NecromancerSidekick::StartCombat()
+{
+    hexTimer = 0;
 }
 
 void NecromancerSidekick::AddEffectCallback(const uint32_t agent_id, const uint32_t value)

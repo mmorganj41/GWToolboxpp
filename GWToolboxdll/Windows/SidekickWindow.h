@@ -39,6 +39,11 @@ public:
         uint32_t area;
     };
 
+    struct SkillActivationPacket {
+        GW::Constants::SkillID skill;
+        GW::AgentID target;
+    };
+
     enum State
     {
         Following,
@@ -91,7 +96,7 @@ public:
 
     bool SetEnabled(bool b);
     bool GetEnabled();
-    bool UseSkillWithTimer(uint32_t slot, uint32_t target = 0U);
+    bool UseSkillWithTimer(uint32_t slot, uint32_t target = 0U, int32_t time = 500);
 
     void ToggleEnable() { SetEnabled(!enabled); }
 
@@ -117,6 +122,8 @@ public:
     virtual void SkillFinishCallback(const uint32_t caster_id);
     virtual void EffectOnTarget(const uint32_t target, const uint32_t value);
     virtual void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value);
+    
+    void CheckForProximity(GW::AgentLiving* agentLiving);
 
     GW::AgentLiving* called_enemy = nullptr;
     GW::AgentLiving* closest_enemy = nullptr;
@@ -146,8 +153,11 @@ public:
         {GW::Constants::SkillType::Ward, SidekickWindow::SkillType::SPELL},        {GW::Constants::SkillType::WeaponSpell, SidekickWindow::SkillType::SPELL},   {GW::Constants::SkillType::WeaponSpell, SidekickWindow::SkillType::SPELL}};
     ;
 
+    GW::Effect* GetAgentEffectBySkillId(GW::AgentID agent_id, GW::Constants::SkillID skill_id);
+
 private:
     bool enabled = false;
+    bool no_combat = false;
     bool shouldInputScatterMove = false;
     uint32_t item_to_pick_up = 0;
 
@@ -156,16 +166,17 @@ private:
     GW::HookEntry GenericModifier_Entry;
     GW::HookEntry PartyInvite;
     GW::HookEntry ObstructedMessage;
-    GW::HookEntry AddEffect;
-    GW::HookEntry RemoveEffect;
     GW::HookEntry Ping_Entry;
+
+    std::unordered_map<GW::AgentID, SkillActivationPacket> scatterCastMap = {};
     
-    void AddEffectTargetCallback(GW::Packet::StoC::AddEffect* packet);
+    void SkillCastScatter(uint32_t caster, uint32_t value, std::optional<uint32_t> target = std::nullopt);
+    void SkillCastFinishScatter(uint32_t caster);
     void GenericValueCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt);
     void OnServerPing(uint32_t packetPing);
 
     float CalculateAngleToMoveAway(GW::GamePos epicenter, GW::GamePos player_position, GW::GamePos group_position);
-    GW::GamePos CalculateInitialPosition(GW::GamePos player_position, GW::GamePos group_position, size_t idx);
+    GW::GamePos CalculateInitialPosition(GW::GamePos player_position, GW::GamePos group_position, size_t idx, float distance = GW::Constants::Range::Area);
 
     bool ShouldItemBePickedUp(GW::AgentItem* item);
 
