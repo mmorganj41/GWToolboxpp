@@ -201,8 +201,9 @@ void SidekickWindow::Update(float delta)
                 const uint32_t agentId = GW::Agents::GetAgentIdByLoginNumber(party->players[i].login_number);
                 GW::Agent* agent = GW::Agents::GetAgentByID(agentId);
                 GW::AgentLiving* player = agent ? agent->GetAsAgentLiving() : nullptr;
+                if (!player) continue;
                 if (player->agent_id == sidekick->agent_id) sidekick_position = i;
-                if (player && player->GetIsAlive() && player->pos.zplane == sidekick->pos.zplane) {
+                if (player->GetIsAlive() && player->pos.zplane == sidekick->pos.zplane) {
                     if (!sum_position) {
                         sum_position = player->pos;
                         party_count += 1;

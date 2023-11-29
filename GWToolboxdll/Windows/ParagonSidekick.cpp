@@ -68,6 +68,28 @@ bool ParagonSidekick::UseCombatSkill() {
         }
     }
 
+    if (!isCasting(sidekickLiving)) {
+        GW::SkillbarSkill wildThrow = skillbar->skills[0];
+        GW::Skill* wildThrowSkillInfo = GW::SkillbarMgr::GetSkillConstantData(wildThrow.skill_id);
+        if (CanUseSkill(wildThrow, wildThrowSkillInfo, cur_energy)) {
+            if (wild_blow_target) {
+                if (UseSkillWithTimer(0, wild_blow_target->agent_id)) {
+                    stanceMap.erase(wild_blow_target->agent_id);
+                    return true;
+                }
+            }
+
+            GW::AgentLiving* targetLiving = GW::Agents::GetTargetAsAgentLiving();
+
+            if (targetLiving && TIMER_DIFF(stanceTimer) > 8000) {
+                if (UseSkillWithTimer(0, targetLiving->agent_id)) {
+                    stanceMap.erase(targetLiving->agent_id);
+                    return true;
+                }
+            }
+        }
+    }
+
     GW::SkillbarSkill goForTheEyes = skillbar->skills[3];
     GW::Skill* goForTheEyesInfo = GW::SkillbarMgr::GetSkillConstantData(goForTheEyes.skill_id);
     if (goForTheEyesInfo && goForTheEyes.adrenaline_a >= goForTheEyesInfo->adrenaline) {
@@ -101,31 +123,6 @@ bool ParagonSidekick::UseCombatSkill() {
     GW::SkillbarSkill theyreOnFire = skillbar->skills[4];
     if (cur_energy > 11 && !theyreOnFire.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(theyreOnFire.skill_id)) {
         if (UseSkillWithTimer(4)) return true;
-    }
-
-    if (isCasting(sidekickLiving)) {
-        return false;
-    }
-    
-    GW::SkillbarSkill wildThrow = skillbar->skills[0];
-    GW::Skill* wildThrowSkillInfo = GW::SkillbarMgr::GetSkillConstantData(wildThrow.skill_id);
-    if (CanUseSkill(wildThrow, wildThrowSkillInfo, cur_energy)) {
-        if (wild_blow_target) {
-            if (UseSkillWithTimer(0, wild_blow_target->agent_id)) {
-                stanceMap.erase(wild_blow_target->agent_id);
-                return true;
-            }
-        }
-
-        GW::AgentLiving* targetLiving = GW::Agents::GetTargetAsAgentLiving();
-
-        if (targetLiving && TIMER_DIFF(stanceTimer) > 8000) {
-            if (UseSkillWithTimer(0, targetLiving->agent_id)) {
-                stanceMap.erase(targetLiving->agent_id);
-                return true;
-            }
-
-        }
     }
 
     return false;
