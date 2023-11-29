@@ -42,10 +42,9 @@ namespace {
     bool combat_start = false;
     bool triggered_move = false;
     bool reposition = false;
-    bool beginning_cinematic = true;
-    bool first_run = true;
     bool first_message = true;
     uint32_t dialog_id = 0;
+    uint32_t dialog_type = 0;
 } // namespace
 
 bool SidekickWindow::GetEnabled() { return enabled; }
@@ -135,8 +134,15 @@ void SidekickWindow::Initialize()
         UNREFERENCED_PARAMETER(status);
         if (!enabled) return;
         if (!packet) return;
-        if (dialog_id == 0 && packet->button_icon != 11 && packet->button_icon != 15 && packet->dialog_id != 0) {
-            dialog_id = packet->dialog_id;
+        if (packet->button_icon != 15 && packet->dialog_id != 0) {
+            if (dialog_id == 0) {
+                dialog_id = packet->dialog_id;
+                dialog_type = packet->button_icon;
+            }
+            else if (dialog_type == 11 && packet->button_icon != 11) {
+                dialog_id = packet->dialog_id;
+                dialog_type = packet->button_icon;
+            }
         }
     });
 }
@@ -158,11 +164,9 @@ void SidekickWindow::Update(float delta)
         party_ids = {};
         party_leader_id = 0;
         HardReset();
-        if (GW::Map::GetIsInCinematic() && beginning_cinematic) {
+        if (GW::Map::GetIsInCinematic()) {
             GW::Map::SkipCinematic();
-            beginning_cinematic = false;
         }
-        first_run = true;
     }
     else if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
             if (party_invite != 0) {
@@ -170,7 +174,6 @@ void SidekickWindow::Update(float delta)
             party_invite = 0;
             Log::Info("Invite accept");
         }
-        first_run = true;
         if (state == Talking) {
             if (!party_leader_id) {
                 GW::PartyInfo* party = GW::PartyMgr::GetPartyInfo();
@@ -223,7 +226,7 @@ void SidekickWindow::Update(float delta)
                     }
                 }
                 else {
-                first_message = false;
+                    first_message = false;
                     if (closest_npc) {
                         GW::Agents::ChangeTarget(closest_npc->agent_id);
                         GW::GameThread::Enqueue([]() -> void {
@@ -236,6 +239,7 @@ void SidekickWindow::Update(float delta)
             if (dialog_id) {
                     GW::Agents::SendDialog(dialog_id);
                     dialog_id = 0;
+                    dialog_type = 0;
             }
             if (GW::GetDistance(sidekick->pos, party_leader->pos) > GW::Constants::Range::Area && !sidekick->GetIsMoving()) {
                     state = Following;
@@ -248,11 +252,6 @@ void SidekickWindow::Update(float delta)
         }
     }
     else {
-        if (first_run) {
-            beginning_cinematic = true;
-            first_run = false;
-        }
-
         if (!party_leader_id) {
             GW::PartyInfo* party = GW::PartyMgr::GetPartyInfo();
             if (!(party && party->players.valid() && party->players.size())) {
