@@ -165,7 +165,7 @@ bool RitualistSidekick::UseCombatSkill() {
             }
     }
     
-    if (!(lowest_health_ally && lowest_health_ally->hp > .5) && deadAlly) {
+    if (!(lowest_health_ally && lowest_health_ally->hp < .5) && deadAlly) {
         GW::SkillbarSkill fleshOfMyFlesh = skillbar->skills[7];
         GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(fleshOfMyFlesh.skill_id);
         if (skillInfo && CanUseSkill(fleshOfMyFlesh, skillInfo, cur_energy)) {

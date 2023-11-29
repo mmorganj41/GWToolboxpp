@@ -83,7 +83,7 @@ bool RangerSidekick::UseCombatSkill() {
 
     GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
     if (cur_energy > 4 && !togetherAsOne.GetRecharge()) {
-        if (GW::Effects::GetPlayerBuffBySkillId(togetherAsOne.skill_id)) {
+        if (!GW::Effects::GetPlayerEffectBySkillId(togetherAsOne.skill_id)) {
             if (UseSkillWithTimer(4)) return true;
         }
     }
@@ -167,7 +167,7 @@ bool RangerSidekick::UseOutOfCombatSkill() {
 
      GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
      if (lowest_health_ally && lowest_health_ally->hp < .5 && cur_energy >= 4 && !togetherAsOne.GetRecharge()) {
-        if (GW::Effects::GetPlayerBuffBySkillId(togetherAsOne.skill_id)) {
+        if (!GW::Effects::GetPlayerEffectBySkillId(togetherAsOne.skill_id)) {
             if (UseSkillWithTimer(4)) return true;
         }
      }
@@ -232,7 +232,7 @@ bool RangerSidekick::SetUpCombatSkills(uint32_t called_target_id) {
 
     GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
     if (cur_energy >= 4 && !togetherAsOne.GetRecharge()) {
-        if (GW::Effects::GetPlayerBuffBySkillId(togetherAsOne.skill_id)) {
+        if (!GW::Effects::GetPlayerEffectBySkillId(togetherAsOne.skill_id)) {
             if (UseSkillWithTimer(4))
                 return true;
         }

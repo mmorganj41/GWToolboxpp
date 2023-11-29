@@ -99,7 +99,7 @@ bool ElementalistSidekick::UseCombatSkill() {
             GW::Agent* bestTarget = GW::Agents::GetAgentByID(best_target);
             GW::AgentLiving* bestLiving = bestTarget ? bestTarget->GetAsAgentLiving() : nullptr;
             if (bestLiving && !bestLiving->GetIsMoving()) {
-                if (UseSkillWithTimer(4, best_target)) {
+                if (UseSkillWithTimer(2, best_target)) {
                     return true;
                 }
             }
