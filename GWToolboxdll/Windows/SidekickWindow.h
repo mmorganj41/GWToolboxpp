@@ -52,6 +52,7 @@ public:
         Kiting,
         Scattering,
         Obstructed,
+        Talking,
     };
 
     void Settings(bool finish_attacks = false, bool kite = true, bool center = false) {
@@ -167,6 +168,9 @@ private:
     GW::HookEntry PartyInvite;
     GW::HookEntry ObstructedMessage;
     GW::HookEntry Ping_Entry;
+    GW::HookEntry Dialog_Entry;
+
+    GW::AgentLiving* closest_npc = nullptr;
 
     std::unordered_map<GW::AgentID, SkillActivationPacket> scatterCastMap = {};
     

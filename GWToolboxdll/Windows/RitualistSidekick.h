@@ -35,4 +35,5 @@ private:
     bool hasVampirism = false;
     GW::AgentLiving* allyWithCondition = nullptr;
     GW::AgentLiving* deadAlly = nullptr;
+    bool spiritInEarshot = false;
 };

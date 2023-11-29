@@ -43,6 +43,7 @@ void RitualistSidekick::ResetTargetValues() {
     hasVampirism = false;
     allyWithCondition = nullptr;
     deadAlly = nullptr;
+    spiritInEarshot = false;
 }
 
 bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
@@ -53,14 +54,26 @@ bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLivi
              if (GW::GetSquareDistance(playerLiving->pos, agentLiving->pos) <= GW::Constants::SqrRange::Earshot) switch (agentLiving->player_number) {
                      case 5723: {
                          hasVampirism = true;
+                         spiritInEarshot = true;
                          return true;
                      }
                      case 4218: {
                          hasLife = true;
+                         spiritInEarshot = true;
+                         return true;
+                     }
+                     default: {
+                         if (agentLiving->GetIsSpawned()) {
+                             spiritInEarshot = true;
+                         }
+                         else if (agentLiving->GetIsConditioned() && !allyWithCondition) {
+                             allyWithCondition = agentLiving;
+                         }
                          return true;
                      }
                  }
              break;
+             
          }
          case GW::Constants::Allegiance::Ally_NonAttackable: {
              if (party_ids.contains(agentLiving->agent_id)) {
@@ -98,14 +111,14 @@ bool RitualistSidekick::UseCombatSkill() {
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     GW::SkillbarSkill boon_of_creation_skillbar = skillbar->skills[6];
-        if (!GW::Effects::GetPlayerBuffBySkillId(boon_of_creation_skillbar.skill_id)) {
+        if (!GW::Effects::GetPlayerEffectBySkillId(boon_of_creation_skillbar.skill_id)) {
             GW::Skill* boon_of_creation_skillinfo = GW::SkillbarMgr::GetSkillConstantData(boon_of_creation_skillbar.skill_id);
             if (boon_of_creation_skillinfo && CanUseSkill(boon_of_creation_skillbar, boon_of_creation_skillinfo, cur_energy) && !GW::Effects::GetPlayerEffectBySkillId(boon_of_creation_skillinfo->skill_id)) {
                 if (UseSkillWithTimer(6)) return true;
             }
     }    
     
-    if (boon_of_creation_skillbar.GetRecharge()) {
+    if (boon_of_creation_skillbar.GetRecharge() || GW::Effects::GetPlayerEffectBySkillId(boon_of_creation_skillbar.skill_id)) {
         GW::SkillbarSkill life = skillbar->skills[2];
         if (!hasLife) {
                 GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(life.skill_id);
@@ -153,7 +166,7 @@ bool RitualistSidekick::UseCombatSkill() {
     GW::SkillbarSkill mendBodyAndSoul = skillbar->skills[5];
     GW::Skill* mendBodyAndSoulSkillInfo = GW::SkillbarMgr::GetSkillConstantData(mendBodyAndSoul.skill_id);
         if (mendBodyAndSoulSkillInfo && CanUseSkill(mendBodyAndSoul, mendBodyAndSoulSkillInfo, cur_energy)) {
-            if (allyWithCondition) {
+            if (allyWithCondition && spiritInEarshot) {
                 if (UseSkillWithTimer(5, allyWithCondition->agent_id)) {
                     return true;
                 }

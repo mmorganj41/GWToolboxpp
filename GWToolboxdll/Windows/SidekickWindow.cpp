@@ -42,6 +42,10 @@ namespace {
     bool combat_start = false;
     bool triggered_move = false;
     bool reposition = false;
+    bool beginning_cinematic = true;
+    bool first_run = true;
+    bool first_message = true;
+    uint32_t dialog_id = 0;
 } // namespace
 
 bool SidekickWindow::GetEnabled() { return enabled; }
@@ -113,6 +117,10 @@ void SidekickWindow::Initialize()
         else if (packet->message[0] == 0x793) {
             no_combat = !no_combat;
         }
+        else if (packet->message[0] == 0x77B) {
+            state = Talking;
+            first_message = true;
+        }
     });
 
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::Ping>(&Ping_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::Ping* packet) -> void {
@@ -122,6 +130,15 @@ void SidekickWindow::Initialize()
         OnServerPing(packet->ping);
 
      }, 0x800);
+
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::DialogButton>(&Dialog_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::DialogButton* packet) -> void {
+        UNREFERENCED_PARAMETER(status);
+        if (!enabled) return;
+        if (!packet) return;
+        if (dialog_id == 0 && packet->button_icon != 11 && packet->button_icon != 15 && packet->dialog_id != 0) {
+            dialog_id = packet->dialog_id;
+        }
+    });
 }
 
 void SidekickWindow::Update(float delta)
@@ -141,17 +158,101 @@ void SidekickWindow::Update(float delta)
         party_ids = {};
         party_leader_id = 0;
         HardReset();
+        if (GW::Map::GetIsInCinematic() && beginning_cinematic) {
+            GW::Map::SkipCinematic();
+            beginning_cinematic = false;
+        }
+        first_run = true;
     }
     else if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
-        party_ids = {};
-        party_leader_id = 0;
-        if (party_invite != 0) {
+            if (party_invite != 0) {
             GW::PartyMgr::RespondToPartyRequest(party_invite, true);
             party_invite = 0;
             Log::Info("Invite accept");
         }
+        first_run = true;
+        if (state == Talking) {
+            if (!party_leader_id) {
+                GW::PartyInfo* party = GW::PartyMgr::GetPartyInfo();
+                if (!(party && party->players.valid() && party->players.size())) {
+                    party_leader_id = 0;
+                }
+                else {
+                    party_leader_id = GW::Agents::GetAgentIdByLoginNumber(party->players[0].login_number);
+                }
+                return;
+            }
+
+            GW::AgentLiving* sidekick = GW::Agents::GetCharacter();
+            if (!sidekick) return;
+
+            ResetTargets();
+
+            GW::Agent* leader = GW::Agents::GetAgentByID(party_leader_id);
+            GW::AgentLiving* party_leader = leader ? leader->GetAsAgentLiving() : nullptr;
+
+            if (!party_leader) return;
+            
+           GW::AgentArray* agent_array = GW::Agents::GetAgentArray();
+
+            if (!agent_array) return;
+
+            for (auto* a : *agent_array) {
+                if (!a) continue;
+                GW::AgentLiving* agentLiving = a->GetAsAgentLiving();
+
+                if (agentLiving) {
+                    if (GW::GetDistance(sidekick->pos, agentLiving->pos) > GW::Constants::Range::Spirit) continue;
+                    if (agentLiving->allegiance == GW::Constants::Allegiance::Npc_Minipet) {
+                        if (!agentLiving->GetIsAlive()) continue;
+                        if (!closest_npc) {
+                            closest_npc = agentLiving;
+                        }
+                        else if (GW::GetSquareDistance(party_leader->pos, agentLiving->pos) < GW::GetSquareDistance(party_leader->pos, closest_npc->pos)) {
+                            closest_npc = agentLiving;
+                        }
+                    }
+                }
+            }
+            if (first_message) {
+                float distance = GW::GetDistance(sidekick->pos, party_leader->pos);
+                if (distance > GW::Constants::Range::Area && TIMER_DIFF(timers.followTimer) > 149 + rand() % 100) {
+                    if (!sidekick->GetIsMoving()) {
+                        GW::Agents::GoPlayer(party_leader);
+                        timers.followTimer = TIMER_INIT();
+                    }
+                }
+                else {
+                first_message = false;
+                    if (closest_npc) {
+                        GW::Agents::ChangeTarget(closest_npc->agent_id);
+                        GW::GameThread::Enqueue([]() -> void {
+                            GW::UI::Keypress(GW::UI::ControlAction::ControlAction_Interact);
+                            return;
+                        });
+                    }
+                }
+            }
+            if (dialog_id) {
+                    GW::Agents::SendDialog(dialog_id);
+                    dialog_id = 0;
+            }
+            if (GW::GetDistance(sidekick->pos, party_leader->pos) > GW::Constants::Range::Area && !sidekick->GetIsMoving()) {
+                    state = Following;
+            }
+            
+        }
+        else {
+            party_ids = {};
+            party_leader_id = 0;
+        }
     }
     else {
+        if (first_run) {
+            beginning_cinematic = true;
+            first_run = false;
+        }
+
         if (!party_leader_id) {
             GW::PartyInfo* party = GW::PartyMgr::GetPartyInfo();
             if (!(party && party->players.valid() && party->players.size())) {
@@ -310,6 +411,17 @@ void SidekickWindow::Update(float delta)
                     }
                 }
                 AgentChecker(agentLiving, sidekick);
+                if (state == Talking) {
+                    if (agentLiving->allegiance == GW::Constants::Allegiance::Npc_Minipet) {
+                        if (!agentLiving->GetIsAlive()) continue;
+                        if (!closest_npc) {
+                            closest_npc = agentLiving;
+                        }
+                        else if (GW::GetSquareDistance(party_leader->pos, agentLiving->pos) < GW::GetSquareDistance(party_leader->pos, closest_npc->pos)) {
+                            closest_npc = agentLiving;
+                        }
+                    }
+                }
             }
             else if (state == Following && (GW::GetDistance(party_leader->pos, sidekick->pos) <= GW::Constants::Range::Spellcast * 3 / 2)) {
                 GW::AgentItem* itemAgent = a->GetAsAgentItem();
@@ -598,6 +710,28 @@ void SidekickWindow::Update(float delta)
                 }
                 break;
             }
+            case Talking: {
+                if (first_message) {
+                    first_message = false;
+                    if (closest_npc) {
+                        GW::Agents::ChangeTarget(closest_npc->agent_id);
+                        GW::GameThread::Enqueue([]() -> void {
+                            GW::UI::Keypress(GW::UI::ControlAction::ControlAction_Interact);
+                            return;
+                        });
+                    }
+                    else {
+                        state = Following;
+                    }
+                }
+                if (dialog_id) {
+                    GW::Agents::SendDialog(dialog_id);
+                    dialog_id = 0;
+                }
+                if (GW::GetDistance(sidekick->pos, party_leader->pos) > GW::Constants::Range::Area && !sidekick->GetIsMoving()) {
+                    state = Following;
+                }
+            }
         }
     }
 }
@@ -875,6 +1009,7 @@ void SidekickWindow::ResetTargets()
     closest_enemy = nullptr;
     lowest_health_enemy = nullptr;
     lowest_health_ally = nullptr;
+    closest_npc = nullptr;
     lowest_health_other_ally = nullptr;
     ResetTargetValues();
 }
