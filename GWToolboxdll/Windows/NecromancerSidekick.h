@@ -46,4 +46,6 @@ private:
     std::unordered_map<GW::AgentID, GW::AgentID> removeEnchantmentMap = {};
     GW::AgentLiving* hexedAlly = nullptr;
     GW::AgentLiving* enchantedEnemy = nullptr;
+    GW::AgentLiving* conditionedAlly = nullptr;
+    uint32_t conditionScore = 0;
 };

@@ -110,15 +110,50 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
             if (!already_casting) enchantedEnemy = agentLiving;
         }
     }
-    else if (!hexedAlly && party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive() && agentLiving->GetIsHexed()) {
-        if (hexTimer == 0) hexTimer = TIMER_INIT();
-        bool already_casting = false;
-        if (TIMER_DIFF(hexTimer) > 40 + static_cast<int32_t>(ping)) {
-            for (auto& it : cureHexMap) {
-                if (it.second == agentLiving->agent_id) already_casting = true;
+    else if (party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive()) {
+        if (!hexedAlly && agentLiving->GetIsHexed()) {
+            if (hexTimer == 0) hexTimer = TIMER_INIT();
+            bool already_casting = false;
+            if (TIMER_DIFF(hexTimer) > 40 + static_cast<int32_t>(ping)) {
+                for (auto& it : cureHexMap) {
+                    if (it.second == agentLiving->agent_id) already_casting = true;
+                }
+            }
+            if (!already_casting) hexedAlly = agentLiving;
+        }
+        if (agentLiving->GetIsConditioned() && agentLiving->agent_id != playerLiving->agent_id) {
+            uint32_t currentScore = 0;
+            auto* effects = GW::Effects::GetAgentEffects(agentLiving->agent_id);
+            if (!effects) return false;
+            for (auto& effect : *effects) {
+                switch (effect.skill_id) {
+                    case GW::Constants::SkillID::Blind:
+                    case GW::Constants::SkillID::Dazed:
+                    case GW::Constants::SkillID::Disease: {
+                        currentScore += 4;
+                        break;
+                    }
+                    case GW::Constants::SkillID::Crippled: 
+                    case GW::Constants::SkillID::Deep_Wound:
+                    case GW::Constants::SkillID::Weakness: {
+                        currentScore += 3;
+                        break;
+                    }
+                    case GW::Constants::SkillID::Poison:
+                    case GW::Constants::SkillID::Cracked_Armor: {
+                        currentScore += 2;
+                        break;
+                    }
+                    case GW::Constants::SkillID::Bleeding: {
+                        currentScore += 1;
+                        break;
+                    }
+                }
+            }
+            if (currentScore > conditionScore) {
+                conditionedAlly = agentLiving;
             }
         }
-        if (!already_casting) hexedAlly = agentLiving;
     }
 
     return false;
@@ -180,6 +215,16 @@ bool NecromancerSidekick::UseCombatSkill() {
         }
     }
 
+    if (conditionedAlly) {
+        GW::SkillbarSkill foulFeast = skillbar->skills[6];
+        GW::Skill* foulFeastInfo = GW::SkillbarMgr::GetSkillConstantData(foulFeast.skill_id);
+        if (CanUseSkill(foulFeast, foulFeastInfo, cur_energy)) {
+            if (UseSkillWithTimer(6, conditionedAlly->agent_id)) {
+                return true;
+            }
+        }
+    }
+
     if (enchantedEnemy) {
         GW::SkillbarSkill jaundicedGaze = skillbar->skills[7];
         GW::Skill* jaundicedGazeInfo = GW::SkillbarMgr::GetSkillConstantData(jaundicedGaze.skill_id);
@@ -231,9 +276,11 @@ void NecromancerSidekick::HardReset() {
     bloodBondMap.clear();
     necromancerEffectSet.clear();
     hexedAlly = nullptr;
+    conditionedAlly = nullptr;
     enchantedEnemy = nullptr;
     cureHexMap.clear();
     removeEnchantmentMap.clear();
+    conditionScore = 0;
 }
 
 void NecromancerSidekick::StopCombat() {
@@ -247,6 +294,8 @@ void NecromancerSidekick::ResetTargetValues()
 {
     hexedAlly = nullptr;
     enchantedEnemy = nullptr;
+    conditionedAlly = nullptr;
+    conditionScore = 0;
 }
 
 void NecromancerSidekick::StartCombat()
