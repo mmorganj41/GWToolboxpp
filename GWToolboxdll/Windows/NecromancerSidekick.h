@@ -43,6 +43,7 @@ private:
     std::optional<GW::GamePos> bloodBondCenter = std::nullopt;
     std::unordered_map<GW::AgentID, SkillDuration> bloodBondMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
+    std::unordered_map<GW::AgentID, GW::AgentID> removeEnchantmentMap = {};
     GW::AgentLiving* hexedAlly = nullptr;
-
+    GW::AgentLiving* enchantedEnemy = nullptr;
 };

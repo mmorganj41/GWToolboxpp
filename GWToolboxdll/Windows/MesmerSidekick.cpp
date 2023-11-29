@@ -56,7 +56,11 @@ bool MesmerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving*
     if (agentLiving->allegiance == GW::Constants::Allegiance::Enemy && agentLiving->GetIsAlive()) {
         if (!enchantedEnemy && agentLiving->GetIsEnchanted() && agentLiving->hp > .3) {
             if (GW::GetSquareDistance(playerLiving->pos, agentLiving->pos) <= GW::Constants::SqrRange::Spellcast) {
-                enchantedEnemy = agentLiving; 
+                bool already_casting = false;
+                for (auto& it : removeEnchantmentMap) {
+                    if (it.second == agentLiving->agent_id) already_casting = true;
+                } 
+                if (!already_casting) enchantedEnemy = agentLiving; 
             }
         }
         if ((!shatterDelusionsTarget)) {
@@ -199,6 +203,7 @@ void MesmerSidekick::HardReset()
     shatterDelusionsTarget = nullptr;
     ResetReaction();
     cureHexMap.clear();
+    removeEnchantmentMap.clear();
 }
 
 void MesmerSidekick::ResetTargetValues() {
@@ -354,6 +359,11 @@ void MesmerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caste
             case GW::Constants::SkillID::Shatter_Hex:
             case GW::Constants::SkillID::Cure_Hex: {
                 cureHexMap.insert_or_assign(living_agent->agent_id, *target_id);
+                break;
+            }
+            case GW::Constants::SkillID::Drain_Enchantment:
+            case GW::Constants::SkillID::Jaundiced_Gaze: {
+                removeEnchantmentMap.insert_or_assign(living_agent->agent_id, *target_id);
             }
         }
         return;
@@ -433,6 +443,7 @@ void MesmerSidekick::SkillFinishCallback(const uint32_t caster_id) {
         if (living_agent->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
 
         cureHexMap.erase(living_agent->agent_id);
+        removeEnchantmentMap.erase(living_agent->agent_id);
         return;
     }
 
@@ -601,4 +612,5 @@ void MesmerSidekick::StopCombat() {
     active_skills.clear();
     mesmerEffectSet.clear();
     cureHexMap.clear();
+    removeEnchantmentMap.clear();
 }

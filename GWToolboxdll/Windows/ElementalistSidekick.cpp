@@ -71,6 +71,42 @@ bool ElementalistSidekick::UseCombatSkill() {
             return true;
     };
 
+    GW::SkillbarSkill fireAttunement = skillbar->skills[7];
+    GW::Skill* fireAttunementInfo = GW::SkillbarMgr::GetSkillConstantData(fireAttunement.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(fireAttunement.skill_id) && fireAttunementInfo && CanUseSkill(fireAttunement, fireAttunementInfo, cur_energy)) {
+        if (UseSkillWithTimer(7)) return true;
+    };
+
+    GW::SkillbarSkill fireball = skillbar->skills[2];
+    GW::Skill* fireballInfo = GW::SkillbarMgr::GetSkillConstantData(fireball.skill_id);
+    if (CanUseSkill(fireball, fireballInfo, cur_energy)) {
+        uint32_t max_proximity = 0;
+        GW::AgentID best_target = 0;
+        for (auto& it : enemyProximityMap) {
+            GW::Agent* agent = GW::Agents::GetAgentByID(best_target);
+            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr; 
+            if (!agentLiving) continue;
+
+            if (GW::GetDistance(agentLiving->pos, sidekickLiving->pos) > GW::Constants::Range::Spellcast * 11 / 10) continue;
+
+            if (it.second.adjacent > max_proximity) {
+                max_proximity = it.second.adjacent;
+                best_target = it.first;
+            }
+        }
+
+        if (max_proximity > 0 && best_target) {
+            GW::Agent* bestTarget = GW::Agents::GetAgentByID(best_target);
+            GW::AgentLiving* bestLiving = bestTarget ? bestTarget->GetAsAgentLiving() : nullptr;
+            if (bestLiving && !bestLiving->GetIsMoving()) {
+                if (UseSkillWithTimer(4, best_target)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+
     GW::SkillbarSkill fireStorm = skillbar->skills[4];
     GW::Skill* fireStormInfo = GW::SkillbarMgr::GetSkillConstantData(fireStorm.skill_id);
     if (CanUseSkill(fireStorm, fireStormInfo, cur_energy)) {
@@ -133,6 +169,13 @@ bool ElementalistSidekick::SetUpCombatSkills(uint32_t called_target) {
         if (UseSkillWithTimer(6))
             return true;
     };
+
+    GW::SkillbarSkill fireAttunement = skillbar->skills[7];
+    GW::Skill* fireAttunementInfo = GW::SkillbarMgr::GetSkillConstantData(fireAttunement.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(fireAttunement.skill_id) && fireAttunementInfo && CanUseSkill(fireAttunement, fireAttunementInfo, cur_energy)) {
+        if (UseSkillWithTimer(7)) return true;
+    };
+
 
     return false;
 }

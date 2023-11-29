@@ -62,12 +62,17 @@ void NecromancerSidekick::SkillCallback(const uint32_t value_id, const uint32_t 
 
         if (caster_id == GW::Agents::GetPlayerId() || casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
 
-            GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
+        GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
 
         switch (skillId) {
             case GW::Constants::SkillID::Shatter_Hex:
             case GW::Constants::SkillID::Remove_Hex: {
                 cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
+                break;
+            }
+            case GW::Constants::SkillID::Drain_Enchantment:
+            case GW::Constants::SkillID::Jaundiced_Gaze: {
+                removeEnchantmentMap.insert_or_assign(casterLiving->agent_id, *target_id);    
             }
         }
     }
@@ -83,19 +88,29 @@ void NecromancerSidekick::SkillFinishCallback(const uint32_t caster_id)
     if (casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
 
     cureHexMap.erase(casterLiving->agent_id);
+    removeEnchantmentMap.erase(casterLiving->agent_id);
 }
 
 
 bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
-    if (checking_agents && bloodBondCenter && agentLiving->allegiance == GW::Constants::Allegiance::Enemy && agentLiving->GetIsAlive()) {
-        if (bloodBondCenter->zplane == agentLiving->pos.zplane && GW::GetSquareDistance(*bloodBondCenter, agentLiving->pos) <= GW::Constants::SqrRange::Adjacent) {
-            SkillDuration skillDuration = {TIMER_INIT(), static_cast<uint32_t>(agentLiving->GetHasBossGlow() ? 4000 : 8000)};
-            bloodBondMap.insert_or_assign(agentLiving->agent_id, skillDuration);
+    if (agentLiving->allegiance == GW::Constants::Allegiance::Enemy && agentLiving->GetIsAlive()) { 
+        if (checking_agents && bloodBondCenter) {
+            if (bloodBondCenter->zplane == agentLiving->pos.zplane && GW::GetSquareDistance(*bloodBondCenter, agentLiving->pos) <= GW::Constants::SqrRange::Adjacent) {
+                SkillDuration skillDuration = {TIMER_INIT(), static_cast<uint32_t>(agentLiving->GetHasBossGlow() ? 6000 : 11000)};
+                bloodBondMap.insert_or_assign(agentLiving->agent_id, skillDuration);
+            }
+        }
+        if (!enchantedEnemy && agentLiving->GetIsEnchanted() && GW::GetDistance(agentLiving->pos, playerLiving->pos) < GW::Constants::Range::Spellcast * 11 / 10) {
+            bool already_casting = false;
+            for (auto& it : removeEnchantmentMap) {
+                if (it.second == agentLiving->agent_id) already_casting = true;
+            }
+            if (!already_casting) enchantedEnemy = agentLiving;
         }
     }
-    else if (party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive() && agentLiving->GetIsHexed()) {
+    else if (!hexedAlly && party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive() && agentLiving->GetIsHexed()) {
         if (hexTimer == 0) hexTimer = TIMER_INIT();
         bool already_casting = false;
         if (TIMER_DIFF(hexTimer) > 40 + static_cast<int32_t>(ping)) {
@@ -103,7 +118,7 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
                 if (it.second == agentLiving->agent_id) already_casting = true;
             }
         }
-        if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
+        if (!already_casting) hexedAlly = agentLiving;
     }
 
     return false;
@@ -165,6 +180,24 @@ bool NecromancerSidekick::UseCombatSkill() {
         }
     }
 
+    if (enchantedEnemy) {
+        GW::SkillbarSkill jaundicedGaze = skillbar->skills[7];
+        GW::Skill* jaundicedGazeInfo = GW::SkillbarMgr::GetSkillConstantData(jaundicedGaze.skill_id);
+        if (CanUseSkill(jaundicedGaze, jaundicedGazeInfo, cur_energy)) {
+            if (UseSkillWithTimer(7, enchantedEnemy->agent_id)) {
+                return true;
+            }
+        }
+    }
+
+    GW::SkillbarSkill orderOfPain = skillbar->skills[2];
+    GW::Skill* orderOfPainInfo = GW::SkillbarMgr::GetSkillConstantData(orderOfPain.skill_id);
+    if (sidekickLiving->hp > .45 && orderOfPainInfo && CanUseSkill(orderOfPain, orderOfPainInfo, cur_energy)) {
+        GW::Effect* orderOfPainEffect = GW::Effects::GetPlayerEffectBySkillId(orderOfPain.skill_id);
+        if ((!orderOfPainEffect || orderOfPainEffect->GetTimeRemaining() < 1500) && UseSkillWithTimer(2)) {
+            return true;
+        }
+    }
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
@@ -198,18 +231,22 @@ void NecromancerSidekick::HardReset() {
     bloodBondMap.clear();
     necromancerEffectSet.clear();
     hexedAlly = nullptr;
+    enchantedEnemy = nullptr;
     cureHexMap.clear();
+    removeEnchantmentMap.clear();
 }
 
 void NecromancerSidekick::StopCombat() {
     bloodBondMap.clear();
     necromancerEffectSet.clear();
     cureHexMap.clear();
+    removeEnchantmentMap.clear();
 }
 
 void NecromancerSidekick::ResetTargetValues()
 {
     hexedAlly = nullptr;
+    enchantedEnemy = nullptr;
 }
 
 void NecromancerSidekick::StartCombat()

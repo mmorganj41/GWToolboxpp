@@ -129,10 +129,10 @@ void IWindow::Initialize()
                      if (!active_skills.empty()) {
                          active_skills.clear();
                      }
-                     return;
                      if (!dazed_agents.empty()) {
                          dazed_agents.clear();
                      }
+                     return;
                  }
                  else {
                      waiting_to_sleep = true;
