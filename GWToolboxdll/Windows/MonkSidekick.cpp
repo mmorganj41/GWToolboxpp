@@ -215,6 +215,7 @@ bool MonkSidekick::UseCombatSkill() {
         if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
             return true;
         }
+    }
     if (!target) return false;
 
     GW::SkillbarSkill baneSignet = skillbar->skills[2];
