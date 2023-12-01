@@ -96,7 +96,9 @@ void MonkSidekick::SkillFinishCallback(const uint32_t caster_id) {
 bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
-    if ((party_ids.contains(agentLiving->agent_id) || (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !agentLiving->GetIsSpawned())) && agentLiving->GetIsAlive()) {
+    if (!agentLiving->GetIsAlive()) return false;
+
+    if ((party_ids.contains(agentLiving->agent_id) || (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !agentLiving->GetIsSpawned()))) {
         if (agentLiving->GetIsHexed()) {
             if (hexTimer == 0) hexTimer = TIMER_INIT();
             bool already_casting = false;
@@ -111,7 +113,7 @@ bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* p
             if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
         }
     }
-    else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable) {
+    else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable ) {
         if ((!lowestHealthNonParty || lowestHealthNonParty->hp > agentLiving->hp)) lowestHealthNonParty = agentLiving;
     }
     return false;
