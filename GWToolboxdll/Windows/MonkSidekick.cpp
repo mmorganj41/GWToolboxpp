@@ -45,12 +45,15 @@ void MonkSidekick::HardReset() {
     monkEffectSet.clear();
     hexedAlly = nullptr;
     cureHexMap.clear();
+    lowestHealthIncludingPet = nullptr;
 }
 
 void MonkSidekick::ResetTargetValues() {
     hexedAlly = nullptr;
     vigorousSpiritAlly = nullptr;
     lowestHealthNonParty = nullptr;
+    lowestHealthIncludingPet = nullptr;
+    damagedAllies = 0;
 }
 
 void MonkSidekick::StartCombat() {
@@ -111,6 +114,10 @@ bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* p
         }
         if (!vigorousSpiritMap.contains(agentLiving->agent_id)) {
             if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
+        }
+        if ((!lowestHealthIncludingPet || lowestHealthIncludingPet->hp > agentLiving->hp)) lowestHealthIncludingPet = agentLiving;
+        if (party_ids.contains(agentLiving->agent_id) && agentLiving->hp < .8) {
+            damagedAllies += 1;
         }
     }
     else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable ) {
@@ -191,13 +198,18 @@ bool MonkSidekick::UseCombatSkill() {
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
-    GW::SkillbarSkill orisonOfHealing = skillbar->skills[0];
+    GW::SkillbarSkill burstOfHealing = skillbar->skills[6];
+    GW::SkillbarSkill orisonOfHealing = skillbar->skills[6];
     GW::Skill* orisonOfHealingInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
     GW::SkillbarSkill vigorousSpirit = skillbar->skills[1];
     GW::Skill* vigorousSpiritInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
-
-
-    if (lowest_health_ally && lowest_health_ally->hp < .55 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) 
+    
+    if (lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .55 || damagedAllies > 3)) {
+        if (UseSkillWithTimer(6, lowestHealthIncludingPet->agent_id)) {
+            return true;
+        }
+    }
+    else if (lowest_health_ally && lowest_health_ally->hp < .55 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) 
     {
         if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
             return true;

@@ -44,5 +44,8 @@ private:
     std::set<uint32_t> monkEffectSet = {};
     GW::AgentLiving* hexedAlly = nullptr;
     GW::AgentLiving* lowestHealthNonParty = nullptr;
+    GW::AgentLiving* lowestHealthIncludingPet = nullptr;
     GW::AgentLiving* vigorousSpiritAlly = nullptr;
+
+    uint32_t damagedAllies = 0;
 };

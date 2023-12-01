@@ -187,4 +187,55 @@ private:
     void ResetTargets();
     void CheckStuck();
     void OnTargetSwitch();
+
+    struct Interrupt {
+        uint32_t caster_id;
+        clock_t cast_start;
+        uint32_t cast_time;
+    };
+
+    std::unordered_map<GW::AgentID, float> cast_times;
+    std::unordered_map<GW::AgentID, Interrupt> interrupts;
+
+    std::unordered_map<GW::Constants::SkillID, bool> interruptSkillsWithFlightTime = {
+        {GW::Constants::SkillID::Disarm, false},
+        {GW::Constants::SkillID::Disrupting_Chop, false},
+        {GW::Constants::SkillID::Disrupting_Shot, true},
+        {GW::Constants::SkillID::Disrupting_Stab, false},
+        {GW::Constants::SkillID::Distracting_Blow, false},
+        {GW::Constants::SkillID::Distracting_Shot, true},
+        {GW::Constants::SkillID::Distracting_Strike, false},
+        {GW::Constants::SkillID::Exhausting_Assault, false},
+        {GW::Constants::SkillID::Leech_Signet, false},
+        {GW::Constants::SkillID::Lyssas_Assault, false},
+        {GW::Constants::SkillID::Magebane_Shot, true},
+        {GW::Constants::SkillID::Psychic_Instability, false},
+        {GW::Constants::SkillID::Punishing_Shot, true},
+        {GW::Constants::SkillID::Savage_Shot, true},
+        {GW::Constants::SkillID::Savage_Slash, true},
+        {GW::Constants::SkillID::Simple_Thievery, false},
+        {GW::Constants::SkillID::Skull_Crack, false},
+        {GW::Constants::SkillID::Thunderclap, false},
+        {GW::Constants::SkillID::Complicate, false},
+        {GW::Constants::SkillID::Cry_of_Frustration, false},
+        {GW::Constants::SkillID::Disrupting_Dagger, false},
+        {GW::Constants::SkillID::Psychic_Distraction, false},
+        {GW::Constants::SkillID::Tease, false},
+        {GW::Constants::SkillID::Web_of_Disruption, false},
+        {GW::Constants::SkillID::Concussion_Shot, false},
+        {GW::Constants::SkillID::Signet_of_Distraction, false},
+        {GW::Constants::SkillID::Temple_Strike, false},
+        {GW::Constants::SkillID::Power_Block, false},
+        {GW::Constants::SkillID::Power_Drain, false},
+        {GW::Constants::SkillID::Power_Flux, false},
+        {GW::Constants::SkillID::Power_Leak, false},
+        {GW::Constants::SkillID::Power_Leech, false},
+        {GW::Constants::SkillID::Power_Lock, false},
+        {GW::Constants::SkillID::Power_Return, false},
+        {GW::Constants::SkillID::Power_Spike, false},
+    };  
+
+    void HandleInterrupts(const uint32_t value_id, const uint32_t caster_id, const uint32_t value);
+
+    bool waitForInterrupt = false;
 };

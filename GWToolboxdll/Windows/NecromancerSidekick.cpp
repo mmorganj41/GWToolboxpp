@@ -210,6 +210,16 @@ bool NecromancerSidekick::UseCombatSkill() {
         return false;
     }
 
+    GW::SkillbarSkill cultistsFervor = skillbar->skills[0];
+    GW::Effect* cultistsFervorEffect = GW::Effects::GetPlayerEffectBySkillId(cultistsFervor.skill_id);
+    if (!cultistsFervorEffect || cultistsFervorEffect->GetTimeRemaining() < 500) {
+        if (cur_energy > 5 && !cultistsFervor.GetRecharge()) {
+            if (UseSkillWithTimer(0)) {
+                return true;
+            }
+        }
+    }
+
     if (hexedAlly) {
         GW::SkillbarSkill cureHex = skillbar->skills[4];
         GW::Skill* cureHexInfo = GW::SkillbarMgr::GetSkillConstantData(cureHex.skill_id);

@@ -68,6 +68,10 @@ void SidekickWindow::Initialize()
         const uint32_t caster_id = packet->target_id;
         const float value = packet->value;
 
+        if (type == GW::Packet::StoC::GenericValueID::casttime) {
+            cast_times.insert_or_assign(caster_id, value);
+        }
+
         GenericModifierCallback(type, caster_id, value);
     });
 
@@ -501,6 +505,8 @@ void SidekickWindow::Update(float delta)
                 });
                 combat_start = true;
                 StopCombat();
+                interrupts.clear();
+                cast_times.clear();
                 Log::Info("Leaving combat...");
                 return;
             }
@@ -508,6 +514,23 @@ void SidekickWindow::Update(float delta)
                 timers.changeStateTimer = TIMER_INIT();
             }
 
+            if (!interrupts.empty()) {
+                for (auto& it : interrupts) {
+                    if (it.second.cast_time - TIMER_DIFF(it.second.cast_start) < 0 - ping) {
+                        interrupts.erase(it.first);
+                    }
+                    else if (it.second.cast_time - TIMER_DIFF(it.second.cast_start) < 50 + 2 * ping) {
+                        waitForInterrupt = true;
+                    }
+                }
+            }
+
+            if (waitForInterrupt && isCasting(sidekick)) {
+                GW::GameThread::Enqueue([]() -> void {
+                    GW::UI::Keypress(GW::UI::ControlAction::ControlAction_CancelAction);
+                    return;
+                });
+            }
         }
 
         switch (state) {
@@ -620,7 +643,7 @@ void SidekickWindow::Update(float delta)
                     }
                 }
 
-                if (UseCombatSkill()) {
+                if (!waitForInterrupt && UseCombatSkill()) {
                     return;
                 }
 
@@ -826,6 +849,8 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
             [[fallthrough]];
         }
         case GenericValueID::instant_skill_activated: {
+             if (target_id == playerId && interruptSkillsWithFlightTime.contains(static_cast<GW::Constants::SkillID>(value)))
+                HandleInterrupts(value_id, caster_id, value);
             SkillCallback(value_id, caster_id, value, target_id);
             break;
         }
@@ -839,6 +864,7 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
          {
             if (scatterCastMap.contains(caster_id)) 
                 scatterCastMap.erase(caster_id);
+            if ((value_id == GenericValueID::attack_skill_stopped || value_id == GenericValueID::skill_stopped) && interrupts.contains(caster_id)) interrupts.erase(caster_id);
             SkillFinishCallback(caster_id);
             break;
         }
@@ -1019,6 +1045,7 @@ void SidekickWindow::ResetTargets()
     closest_npc = nullptr;
     lowest_health_other_ally = nullptr;
     ResetTargetValues();
+    waitForInterrupt = false;
 }
 
 void SidekickWindow::HardReset()
@@ -1158,3 +1185,40 @@ void SidekickWindow::AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet
     UNREFERENCED_PARAMETER(packet);
 }
 
+void SidekickWindow::HandleInterrupts(const uint32_t value_id, const uint32_t caster_id, const uint32_t value) {
+    float cast_time = cast_times[caster_id];
+    cast_times.erase(caster_id);
+
+    const auto agent = GW::Agents::GetAgentByID(caster_id);
+    const GW::AgentLiving* living_agent = agent ? agent->GetAsAgentLiving() : nullptr;
+
+    if (!living_agent) return;
+
+     GW::Constants::SkillID skill_id = static_cast<GW::Constants::SkillID>(value);
+
+    const auto skill = GW::SkillbarMgr::GetSkillConstantData(skill_id);
+
+      if (skill) {
+        if (!cast_time) {
+            cast_time = skill->activation;
+            if (value_id == GW::Packet::StoC::GenericValueID::attack_skill_activated) {
+                if (!cast_time) {
+                    cast_time = living_agent->weapon_attack_speed * living_agent->attack_speed_modifier;
+                }
+            }
+        }
+      }
+      if (value_id == GW::Packet::StoC::GenericValueID::attack_skill_activated) cast_time /= 2;
+
+      if (interruptSkillsWithFlightTime[skill_id]) {
+        const auto* sidekick =  GW::Agents::GetPlayerAsAgentLiving();
+        if (sidekick) cast_time += static_cast<uint32_t>(GW::GetDistance(sidekick->pos, living_agent->pos) * .042);
+      }
+
+      Interrupt interrupt = {
+          caster_id,
+          TIMER_INIT(),
+          static_cast<uint32_t>(cast_time * 1000),
+      };
+      interrupts.insert_or_assign(caster_id, interrupt);
+}
