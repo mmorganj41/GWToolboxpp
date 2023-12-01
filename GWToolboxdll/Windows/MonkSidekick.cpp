@@ -214,7 +214,7 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
     else if (lowestHealthNonParty && lowestHealthNonParty->hp < .6 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) {
-        if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
+        if (UseSkillWithTimer(0, lowestHealthNonParty->agent_id)) {
             return true;
         }
     }
