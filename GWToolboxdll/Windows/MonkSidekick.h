@@ -43,5 +43,6 @@ private:
     std::unordered_map<GW::AgentID, SkillDuration> vigorousSpiritMap = {};
     std::set<uint32_t> monkEffectSet = {};
     GW::AgentLiving* hexedAlly = nullptr;
+    GW::AgentLiving* lowestHealthNonParty = nullptr;
     GW::AgentLiving* vigorousSpiritAlly = nullptr;
 };

@@ -40,6 +40,7 @@ namespace {
 
 void MonkSidekick::HardReset() {
     vigorousSpiritAlly = nullptr;
+    lowestHealthNonParty = nullptr;
     vigorousSpiritMap.clear();
     monkEffectSet.clear();
     hexedAlly = nullptr;
@@ -49,6 +50,7 @@ void MonkSidekick::HardReset() {
 void MonkSidekick::ResetTargetValues() {
     hexedAlly = nullptr;
     vigorousSpiritAlly = nullptr;
+    lowestHealthNonParty = nullptr;
 }
 
 void MonkSidekick::StartCombat() {
@@ -108,7 +110,9 @@ bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* p
         if (!vigorousSpiritMap.contains(agentLiving->agent_id)) {
             if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
         }
-
+    }
+    else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable) {
+        if ((!lowestHealthNonParty || lowestHealthNonParty->hp > agentLiving->hp)) lowestHealthNonParty = agentLiving;
     }
     return false;
 }
@@ -207,6 +211,10 @@ bool MonkSidekick::UseCombatSkill() {
             return true;
         }
     }
+    else if (lowestHealthNonParty && lowestHealthNonParty->hp < .6 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) {
+        if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
+            return true;
+        }
     if (!target) return false;
 
     GW::SkillbarSkill baneSignet = skillbar->skills[2];
@@ -288,7 +296,7 @@ void MonkSidekick::AddEffectCallback(const uint32_t agent_id, const uint32_t val
 
     if (!agentLiving) return;
 
-    if (!((agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol)) return;
+    if (!((party_ids.contains(agentLiving->agent_id) || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol)) return;
 
     Log::Info("added monk effect");
 
@@ -302,7 +310,7 @@ void MonkSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t 
 
     if (!agentLiving) return;
 
-    if (!(agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol) return;
+    if (!(party_ids.contains(agentLiving->agent_id) || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol) return;
     
     Log::Info("monk effect removed");
 
