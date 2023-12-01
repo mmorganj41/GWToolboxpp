@@ -36,6 +36,11 @@
 
 namespace {
     clock_t hexTimer = 0;
+    const uint32_t blind_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::blind)));
+    const uint32_t dazed_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::dazed)));
+    const uint32_t disease_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::disease)));
+    const uint32_t weakness_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::weakness)));
+    const uint32_t poison_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::poison)));
 } // namespace
 
 
@@ -123,34 +128,35 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
         }
         if (agentLiving->GetIsConditioned() && agentLiving->agent_id != playerLiving->agent_id) {
             uint32_t currentScore = 0;
-            auto* effects = GW::Effects::GetAgentEffects(agentLiving->agent_id);
-            if (!effects) return false;
-            for (auto& effect : *effects) {
-                switch (effect.skill_id) {
-                    case GW::Constants::SkillID::Blind:
-                    case GW::Constants::SkillID::Dazed:
-                    case GW::Constants::SkillID::Disease: {
-                        currentScore += 4;
-                        break;
-                    }
-                    case GW::Constants::SkillID::Crippled: 
-                    case GW::Constants::SkillID::Deep_Wound:
-                    case GW::Constants::SkillID::Weakness: {
-                        currentScore += 3;
-                        break;
-                    }
-                    case GW::Constants::SkillID::Poison:
-                    case GW::Constants::SkillID::Cracked_Armor: {
-                        currentScore += 2;
-                        break;
-                    }
-                    case GW::Constants::SkillID::Bleeding: {
-                        currentScore += 1;
-                        break;
-                    }
+            if (conditionEffectMap.contains(agentLiving->agent_id)) {
+                const uint32_t conditionValue = conditionEffectMap[agentLiving->agent_id];
+                if (conditionValue & blind_bin) {
+                    currentScore += 5;
+                }
+                if (conditionValue & dazed_bin) {
+                    currentScore += 5;
+                }
+                if (conditionValue & disease_bin) {
+                    currentScore += 4;
+                }
+                if (conditionValue & weakness_bin) {
+                    currentScore += 3;
+                }
+                if (conditionValue & poison_bin) {
+                    currentScore += 2;
                 }
             }
+            if (agentLiving->GetIsCrippled()) {
+                currentScore += 3;
+            }
+            if (agentLiving->GetIsDeepWounded()) {
+                currentScore += 3;
+            }
+            if (agentLiving->GetIsBleeding()) {
+                currentScore += 1;
+            }
             if (currentScore > conditionScore) {
+                conditionScore = currentScore;
                 conditionedAlly = agentLiving;
             }
         }
@@ -272,6 +278,7 @@ void NecromancerSidekick::FinishedCheckingAgentsCallback() {
 }
 
 void NecromancerSidekick::HardReset() {
+    conditionEffectMap.clear();
     bloodBondCenter = std::nullopt;
     bloodBondMap.clear();
     necromancerEffectSet.clear();
@@ -308,7 +315,37 @@ void NecromancerSidekick::AddEffectCallback(const uint32_t agent_id, const uint3
     GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
     GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
 
-    if (!(agentLiving && agentLiving->allegiance == GW::Constants::Allegiance::Enemy && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::necro_symbol)) return;
+    if (!agentLiving) return;
+
+    if (party_ids.contains(agent_id))
+    {
+        uint32_t new_value = conditionEffectMap.contains(agent_id) ? conditionEffectMap[agent_id] : 0x0;
+        switch (static_cast<GW::Constants::EffectID>(value)) {
+            case GW::Constants::EffectID::blind: {
+                if (new_value ^ blind_bin) new_value += blind_bin;
+                break;
+            }
+            case GW::Constants::EffectID::dazed: {
+                if (new_value ^ dazed_bin) new_value += dazed_bin;
+                break;
+            }
+            case GW::Constants::EffectID::disease: {
+                if (new_value ^ disease_bin) new_value += disease_bin;
+                break;
+            }
+            case GW::Constants::EffectID::weakness: {
+                if (new_value ^ weakness_bin) new_value += weakness_bin;
+                break;
+            }
+            case GW::Constants::EffectID::poison: {
+                if (new_value ^ poison_bin) new_value += poison_bin;
+                break;
+            }
+        }
+        conditionEffectMap.insert_or_assign(agent_id, new_value);
+    }
+
+    if ((agentLiving->allegiance == GW::Constants::Allegiance::Enemy && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::necro_symbol)) return;
 
     necromancerEffectSet.insert(agent_id);
 }
@@ -317,6 +354,35 @@ void NecromancerSidekick::RemoveEffectCallback(const uint32_t agent_id, const ui
 {
     GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
     GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+        if (!agentLiving) return;
+
+    if (party_ids.contains(agent_id)) {
+        uint32_t new_value = conditionEffectMap.contains(agent_id) ? conditionEffectMap[agent_id] : 0x0;
+        switch (static_cast<GW::Constants::EffectID>(value)) {
+            case GW::Constants::EffectID::blind: {
+                if (new_value & blind_bin) new_value -= blind_bin;
+                break;
+            }
+            case GW::Constants::EffectID::dazed: {
+                if (new_value & dazed_bin) new_value -= dazed_bin;
+                break;
+            }
+            case GW::Constants::EffectID::disease: {
+                if (new_value & disease_bin) new_value -= disease_bin;
+                break;
+            }
+            case GW::Constants::EffectID::weakness: {
+                if (new_value & weakness_bin) new_value -= weakness_bin;
+                break;
+            }
+            case GW::Constants::EffectID::poison: {
+                if (new_value & poison_bin) new_value -= poison_bin;
+                break;
+            }
+        }
+        conditionEffectMap.insert_or_assign(agent_id, new_value);
+    }
 
     if (!(agentLiving && agentLiving->allegiance == GW::Constants::Allegiance::Enemy && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::necro_symbol)) return;
 

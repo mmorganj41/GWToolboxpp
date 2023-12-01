@@ -39,12 +39,15 @@ namespace {
 } // namespace
 
 void MonkSidekick::HardReset() {
+    vigorousSpiritAlly = nullptr;
+    vigorousSpiritMap.clear();
     hexedAlly = nullptr;
     cureHexMap.clear();
 }
 
 void MonkSidekick::ResetTargetValues() {
     hexedAlly = nullptr;
+    vigorousSpiritAlly = nullptr;
 }
 
 void MonkSidekick::StartCombat() {
@@ -90,17 +93,52 @@ void MonkSidekick::SkillFinishCallback(const uint32_t caster_id) {
 bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
-    if (party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive() && agentLiving->GetIsHexed()) {
-        if (hexTimer == 0) hexTimer = TIMER_INIT();
-        bool already_casting = false;
-        if (TIMER_DIFF(hexTimer) > 80 + 2*static_cast<int32_t>(ping)) {
-            for (auto& it : cureHexMap) {
-                if (it.second == agentLiving->agent_id) already_casting = true;
+    if ((party_ids.contains(agentLiving->agent_id) || (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !agentLiving->GetIsSpawned())) && agentLiving->GetIsAlive()) {
+        if (agentLiving->GetIsHexed()) {
+            if (hexTimer == 0) hexTimer = TIMER_INIT();
+            bool already_casting = false;
+            if (TIMER_DIFF(hexTimer) > 80 + 2 * static_cast<int32_t>(ping)) {
+                for (auto& it : cureHexMap) {
+                    if (it.second == agentLiving->agent_id) already_casting = true;
+                }
             }
+            if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
         }
-        if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
+        if (!vigorousSpiritMap.contains(agentLiving->agent_id)) {
+            if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
+        }
+
     }
     return false;
+}
+
+void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
+{
+    UNREFERENCED_PARAMETER(sidekick);
+    if (state == Following || state == Picking_up) return;
+
+    if (!vigorousSpiritMap.empty()) {
+        for (auto& it : vigorousSpiritMap) {
+            GW::Agent* agent = GW::Agents::GetAgentByID(it.first);
+            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+            if (!(agentLiving && agentLiving->GetIsAlive())) {
+                vigorousSpiritMap.erase(it.first);
+                continue;
+            }
+
+            clock_t elapsed_time = TIMER_DIFF(it.second.startTime);
+
+            if (elapsed_time - it.second.duration < 250) {
+                vigorousSpiritMap.erase(it.first);
+                continue;
+            }
+            else if (elapsed_time > 500 && !(agentLiving->GetIsEnchanted() && monkEffectSet.contains(it.first))) {
+                vigorousSpiritMap.erase(it.first);
+                continue;
+            }
+       }
+    }
 }
 
 bool MonkSidekick::UseCombatSkill() {
@@ -143,31 +181,28 @@ bool MonkSidekick::UseCombatSkill() {
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
-    if (lowest_health_ally) {
-        GW::SkillbarSkill orisonOfHealing = skillbar->skills[0];
-        GW::Skill* orisonOfHealingInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
-        GW::SkillbarSkill healingBreeze = skillbar->skills[1];
-        GW::Skill* healingBreezeInfo = GW::SkillbarMgr::GetSkillConstantData(healingBreeze.skill_id);
+    GW::SkillbarSkill orisonOfHealing = skillbar->skills[0];
+    GW::Skill* orisonOfHealingInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
+    GW::SkillbarSkill vigorousSpirit = skillbar->skills[1];
+    GW::Skill* vigorousSpiritInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
 
-        if (lowest_health_ally->hp < .55 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) 
-        {
-            if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
-                return true;
-            }
-        }
-        else if (lowest_health_ally->hp < .8 && cur_energy > 15 && !GetAgentEffectBySkillId(lowest_health_ally->agent_id, healingBreeze.skill_id) && healingBreezeInfo && CanUseSkill(healingBreeze, healingBreezeInfo, cur_energy))
-        {
-            if (UseSkillWithTimer(1, lowest_health_ally->agent_id)) {
-                return true;
-            }
-        }
-        else if (lowest_health_ally->hp < .7 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) {
-            if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
-                return true;
-            }
+
+    if (lowest_health_ally && lowest_health_ally->hp < .55 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) 
+    {
+        if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
+            return true;
         }
     }
-
+    else if (vigorousSpiritAlly && vigorousSpiritAlly->hp < .95 && vigorousSpiritInfo && CanUseSkill(vigorousSpirit, vigorousSpiritInfo, cur_energy)) {
+        if (UseSkillWithTimer(1, vigorousSpiritAlly->agent_id)) {
+            return true;
+        }
+    }
+    else if (lowest_health_ally && lowest_health_ally->hp < .7 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) {
+        if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
+            return true;
+        }
+    }
     if (!target) return false;
 
     GW::SkillbarSkill baneSignet = skillbar->skills[2];
@@ -211,16 +246,9 @@ bool MonkSidekick::UseOutOfCombatSkill()
         if (lowest_health_ally) {
             GW::SkillbarSkill orisonOfHealing = skillbar->skills[0];
             GW::Skill* orisonOfHealingInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
-            GW::SkillbarSkill healingBreeze = skillbar->skills[1];
-            GW::Skill* healingBreezeInfo = GW::SkillbarMgr::GetSkillConstantData(healingBreeze.skill_id);
 
             if (lowest_health_ally->hp < .55 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) {
                 if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
-                    return true;
-                }
-            }
-            else if (lowest_health_ally->hp < .8 && cur_energy > 15 && !GetAgentEffectBySkillId(lowest_health_ally->agent_id, healingBreeze.skill_id) && healingBreezeInfo && CanUseSkill(healingBreeze, healingBreezeInfo, cur_energy)) {
-                if (UseSkillWithTimer(1, lowest_health_ally->agent_id)) {
                     return true;
                 }
             }
@@ -233,4 +261,48 @@ bool MonkSidekick::UseOutOfCombatSkill()
     }
 
     return false;
+}
+
+void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
+{
+    GW::Agent* targetAgent = GW::Agents::GetAgentByID(target);
+    GW::AgentLiving* targetLiving = targetAgent ? targetAgent->GetAsAgentLiving() : nullptr;
+
+    if (!targetLiving) return;
+
+    if ((party_ids.contains(target) || (targetLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !targetLiving->GetIsSpawned())) && value == 465) {
+        SkillDuration skillDuration = {TIMER_INIT(), 30000};
+        vigorousSpiritMap.insert_or_assign(target, skillDuration);
+    }
+}
+
+void MonkSidekick::AddEffectCallback(const uint32_t agent_id, const uint32_t value)
+{
+    GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
+    GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+    if (!agentLiving) return;
+
+    if (!((agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol)) return;
+
+    monkEffectSet.insert(agent_id);
+}
+
+void MonkSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t value)
+{
+    GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
+    GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+    if (!agentLiving) return;
+
+    if (!(agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol) return;
+
+    monkEffectSet.erase(agent_id);
+}
+
+void MonkSidekick::AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet) {
+    if (packet->agent_id == GW::Agents::GetPlayerId() && packet->skill_id == static_cast<uint32_t>(GW::Constants::SkillID::Vigorous_Spirit)) {
+        SkillDuration skillDuration = {TIMER_INIT(), 30000};
+        vigorousSpiritMap.insert_or_assign(packet->agent_id, skillDuration);
+    }
 }

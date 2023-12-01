@@ -145,6 +145,14 @@ void SidekickWindow::Initialize()
             }
         }
     });
+
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AddEffect>(&AddEffect_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::AddEffect* packet) -> void {
+        UNREFERENCED_PARAMETER(status);
+        if (!enabled) return;
+        if (!packet) return;
+
+        AddEffectPacketCallback(packet);
+     });
 }
 
 void SidekickWindow::Update(float delta)
@@ -390,7 +398,7 @@ void SidekickWindow::Update(float delta)
                             else if (GW::GetSquareDistance(sidekick->pos, agentLiving->pos) < GW::GetSquareDistance(sidekick->pos, closest_enemy->pos)) {
                                 closest_enemy = agentLiving;
                             }
-                            if (agentLiving->hp < 1.0f && GW::GetSquareDistance(sidekick->pos, agentLiving->pos) < GW::Constants::SqrRange::Spellcast && (!lowest_health_enemy || lowest_health_enemy->hp > agentLiving->hp)) lowest_health_enemy = agentLiving;
+                            if (agentLiving->hp < 1.0f && GW::GetDistance(sidekick->pos, agentLiving->pos) < GW::Constants::Range::Spellcast * 6/5 && (!lowest_health_enemy || lowest_health_enemy->hp > agentLiving->hp)) lowest_health_enemy = agentLiving;
                         }
                         break;
                     }
@@ -451,7 +459,7 @@ void SidekickWindow::Update(float delta)
         }
 
         if (state == Following || state == Picking_up) {
-            if (!still_in_combat && closest_enemy && ((closest_enemy->pos.zplane == party_leader->pos.zplane && GW::GetDistance(closest_enemy->pos, party_leader->pos) <= GW::Constants::Range::Earshot) || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
+            if (!still_in_combat && closest_enemy && (GW::GetDistance(closest_enemy->pos, party_leader->pos) <= GW::Constants::Range::Earshot || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
                 if (!starting_combat) {
                     starting_combat = true;
                     timers.changeStateTimer = TIMER_INIT();
@@ -1123,7 +1131,6 @@ void SidekickWindow::CheckForProximity(GW::AgentLiving* agentLiving) {
 
     for (auto& it : enemyProximityMap) {
         if (it.first == agentLiving->agent_id) continue;
-        if (proximity.position.zplane != it.second.position.zplane) continue;
         float distance = GW::GetSquareDistance(proximity.position, it.second.position);
         if (distance <= GW::Constants::SqrRange::Adjacent) {
             proximity.adjacent += 1;
@@ -1147,12 +1154,7 @@ void SidekickWindow::CheckForProximity(GW::AgentLiving* agentLiving) {
     enemyProximityMap.insert_or_assign(agentLiving->agent_id, proximity);
 }
 
-GW::Effect* SidekickWindow::GetAgentEffectBySkillId(GW::AgentID agent_id, GW::Constants::SkillID skill_id)
-{
-    auto* effects = GW::Effects::GetAgentEffects(agent_id);
-    if (!effects) return nullptr;
-    for (auto& effect : *effects) {
-        if (effect.skill_id == skill_id) return &effect;
-    }
-    return nullptr;
+void SidekickWindow::AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet){
+    UNREFERENCED_PARAMETER(packet);
 }
+

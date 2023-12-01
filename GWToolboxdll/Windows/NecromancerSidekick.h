@@ -44,6 +44,7 @@ private:
     std::unordered_map<GW::AgentID, SkillDuration> bloodBondMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> removeEnchantmentMap = {};
+    std::unordered_map<GW::AgentID, uint32_t> conditionEffectMap = {};
     GW::AgentLiving* hexedAlly = nullptr;
     GW::AgentLiving* enchantedEnemy = nullptr;
     GW::AgentLiving* conditionedAlly = nullptr;

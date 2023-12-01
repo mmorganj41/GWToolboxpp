@@ -123,6 +123,7 @@ public:
     virtual void SkillFinishCallback(const uint32_t caster_id);
     virtual void EffectOnTarget(const uint32_t target, const uint32_t value);
     virtual void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value);
+    virtual void AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet);
     
     void CheckForProximity(GW::AgentLiving* agentLiving);
 
@@ -154,8 +155,6 @@ public:
         {GW::Constants::SkillType::Ward, SidekickWindow::SkillType::SPELL},        {GW::Constants::SkillType::WeaponSpell, SidekickWindow::SkillType::SPELL},   {GW::Constants::SkillType::WeaponSpell, SidekickWindow::SkillType::SPELL}};
     ;
 
-    GW::Effect* GetAgentEffectBySkillId(GW::AgentID agent_id, GW::Constants::SkillID skill_id);
-
 private:
     bool enabled = false;
     bool no_combat = false;
@@ -168,6 +167,7 @@ private:
     GW::HookEntry PartyInvite;
     GW::HookEntry ObstructedMessage;
     GW::HookEntry Ping_Entry;
+    GW::HookEntry AddEffect_Entry;
     GW::HookEntry Dialog_Entry;
 
     GW::AgentLiving* closest_npc = nullptr;
