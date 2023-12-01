@@ -41,6 +41,7 @@ namespace {
 void MonkSidekick::HardReset() {
     vigorousSpiritAlly = nullptr;
     vigorousSpiritMap.clear();
+    monkEffectSet.clear();
     hexedAlly = nullptr;
     cureHexMap.clear();
 }
@@ -123,6 +124,7 @@ void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
             GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
 
             if (!(agentLiving && agentLiving->GetIsAlive())) {
+                Log::Info("ally dead");
                 vigorousSpiritMap.erase(it.first);
                 continue;
             }
@@ -131,10 +133,12 @@ void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
 
             if (elapsed_time - it.second.duration < 250) {
                 vigorousSpiritMap.erase(it.first);
+                Log::Info("Vigorous ran out");
                 continue;
             }
             else if (elapsed_time > 500 && !(agentLiving->GetIsEnchanted() && monkEffectSet.contains(it.first))) {
                 vigorousSpiritMap.erase(it.first);
+                Log::Info("Vigorous removed");
                 continue;
             }
        }
@@ -272,6 +276,7 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
 
     if ((party_ids.contains(target) || (targetLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !targetLiving->GetIsSpawned())) && value == 465) {
         SkillDuration skillDuration = {TIMER_INIT(), 30000};
+        Log::Info("vigorous applied");
         vigorousSpiritMap.insert_or_assign(target, skillDuration);
     }
 }
@@ -285,6 +290,8 @@ void MonkSidekick::AddEffectCallback(const uint32_t agent_id, const uint32_t val
 
     if (!((agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol)) return;
 
+    Log::Info("added monk effect");
+
     monkEffectSet.insert(agent_id);
 }
 
@@ -296,6 +303,8 @@ void MonkSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t 
     if (!agentLiving) return;
 
     if (!(agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol) return;
+    
+    Log::Info("monk effect removed");
 
     monkEffectSet.erase(agent_id);
 }
@@ -303,6 +312,7 @@ void MonkSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t 
 void MonkSidekick::AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet) {
     if (packet->agent_id == GW::Agents::GetPlayerId() && packet->skill_id == static_cast<uint32_t>(GW::Constants::SkillID::Vigorous_Spirit)) {
         SkillDuration skillDuration = {TIMER_INIT(), 30000};
+        Log::Info("vigorous applied to self");
         vigorousSpiritMap.insert_or_assign(packet->agent_id, skillDuration);
     }
 }
