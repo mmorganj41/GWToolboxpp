@@ -161,9 +161,9 @@ bool RitualistSidekick::UseCombatSkill() {
 
     if (TIMER_DIFF(armorOfUnfeelingTimer) > 36000 || newSpirit) armorOfUnfeelingTimer = 0;
 
-    if (!spiritInEarshot || lowHealthSpirit) {
+    if ((!spiritInEarshot && cur_energy > 10) || (lowHealthSpirit && armorOfUnfeelingTimer != 0 && cur_energy > 19)) {
         GW::SkillbarSkill summonSpirits = skillbar->skills[5];
-        if (cur_energy > 19 && !summonSpirits.GetRecharge()) {
+        if (!summonSpirits.GetRecharge()) {
             if (UseSkillWithTimer(5)) {
                 return true;
             }

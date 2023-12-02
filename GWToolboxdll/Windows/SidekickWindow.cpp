@@ -680,7 +680,10 @@ void SidekickWindow::Update(float delta)
                 break;
             }
             case Kiting: {
-                if (isCasting(sidekick)) return;
+                if (isCasting(sidekick)) {
+                    timers.kiteTimer = TIMER_INIT();
+                    return;
+                }
                 if (kiting_location && group_center) {
                     float new_angle = CalculateAngleToMoveAway(*kiting_location, sidekick->pos, *group_center);
                     GW::GamePos new_position = {sidekick->pos.x + std::cosf(new_angle) * GW::Constants::Range::Area, sidekick->pos.y + std::sinf(new_angle) * GW::Constants::Range::Area, sidekick->pos.zplane};
@@ -689,7 +692,7 @@ void SidekickWindow::Update(float delta)
                     return;
                 }
                 WhenKiting();
-                if (TIMER_DIFF(timers.kiteTimer) >= 750 || (closest_enemy && GW::GetDistance(sidekick->pos, closest_enemy->pos) > (GW::Constants::Range::Nearby + GW::Constants::Range::Area) / 2)) {
+                if (TIMER_DIFF(timers.kiteTimer) >= 500 || (closest_enemy && GW::GetDistance(sidekick->pos, closest_enemy->pos) > (GW::Constants::Range::Nearby + GW::Constants::Range::Area) / 2)) {
                     state = Fighting;
                 }
                 break;
