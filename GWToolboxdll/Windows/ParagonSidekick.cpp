@@ -90,6 +90,15 @@ bool ParagonSidekick::UseCombatSkill() {
         }
     }
 
+    GW::SkillbarSkill saveYourselves = skillbar->skills[1];
+    GW::Skill* saveYourselvesInfo = GW::SkillbarMgr::GetSkillConstantData(saveYourselves.skill_id);
+    if (TIMER_DIFF(saveYourselvesTimer) > 4000 && saveYourselvesInfo && CanUseSkill(saveYourselves, saveYourselvesInfo, cur_energy)) {
+        if (UseSkillWithTimer(1)) {
+            saveYourselvesTimer = TIMER_INIT();
+            return true;
+        }
+    }
+
     GW::SkillbarSkill goForTheEyes = skillbar->skills[3];
     GW::Skill* goForTheEyesInfo = GW::SkillbarMgr::GetSkillConstantData(goForTheEyes.skill_id);
     if (goForTheEyesInfo && goForTheEyes.adrenaline_a >= goForTheEyesInfo->adrenaline) {
@@ -104,16 +113,9 @@ bool ParagonSidekick::UseCombatSkill() {
     }
 
     GW::SkillbarSkill focusedAnger = skillbar->skills[5];
-    GW::SkillbarSkill forGreatJustice = skillbar->skills[1];
-    if (!(GW::Effects::GetPlayerEffectBySkillId(focusedAnger.skill_id) || GW::Effects::GetPlayerEffectBySkillId(forGreatJustice.skill_id) && shoutTimer > 2500)) {
+    if (!GW::Effects::GetPlayerEffectBySkillId(focusedAnger.skill_id) && shoutTimer > 1000) {
         if (cur_energy > 11 && !focusedAnger.GetRecharge()) {
             if (UseSkillWithTimer(5)) {
-                shoutTimer = TIMER_INIT();
-                return true;
-            }
-        }
-        else if (cur_energy > 6 && !forGreatJustice.GetRecharge()) {
-            if (UseSkillWithTimer(1)) {
                 shoutTimer = TIMER_INIT();
                 return true;
             }
@@ -201,6 +203,8 @@ void ParagonSidekick::HardReset()
     moving_ally = nullptr;
     wild_blow_target = nullptr;
     stanceMap.clear();
+    saveYourselvesTimer = TIMER_INIT();
+    shoutTimer = TIMER_INIT();
 }
 
 void ParagonSidekick::StartCombat() {

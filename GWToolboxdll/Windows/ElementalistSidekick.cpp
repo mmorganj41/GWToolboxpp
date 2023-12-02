@@ -66,16 +66,22 @@ bool ElementalistSidekick::UseCombatSkill()
         return false;
     }
 
-    GW::SkillbarSkill auraOfRestoration = skillbar->skills[6];
-    GW::Skill* auraOfRestorationInfo = GW::SkillbarMgr::GetSkillConstantData(auraOfRestoration.skill_id);
-    if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
-        if (UseSkillWithTimer(6)) return true;
+    GW::SkillbarSkill elementalLord = skillbar->skills[0];
+    GW::Skill* elementalLordInfo = GW::SkillbarMgr::GetSkillConstantData(elementalLord.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(elementalLord.skill_id) && elementalLordInfo && CanUseSkill(elementalLord, elementalLordInfo, cur_energy)) {
+        if (UseSkillWithTimer(0)) return true;
     };
 
     GW::SkillbarSkill fireAttunement = skillbar->skills[7];
     GW::Skill* fireAttunementInfo = GW::SkillbarMgr::GetSkillConstantData(fireAttunement.skill_id);
     if (!GW::Effects::GetPlayerEffectBySkillId(fireAttunement.skill_id) && fireAttunementInfo && CanUseSkill(fireAttunement, fireAttunementInfo, cur_energy)) {
         if (UseSkillWithTimer(7)) return true;
+    };
+
+    GW::SkillbarSkill auraOfRestoration = skillbar->skills[6];
+    GW::Skill* auraOfRestorationInfo = GW::SkillbarMgr::GetSkillConstantData(auraOfRestoration.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
+        if (UseSkillWithTimer(6)) return true;
     };
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
@@ -163,11 +169,10 @@ bool ElementalistSidekick::SetUpCombatSkills(uint32_t called_target) {
         return false;
     }
 
-    GW::SkillbarSkill auraOfRestoration = skillbar->skills[6];
-    GW::Skill* auraOfRestorationInfo = GW::SkillbarMgr::GetSkillConstantData(auraOfRestoration.skill_id);
-    if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
-        if (UseSkillWithTimer(6))
-            return true;
+    GW::SkillbarSkill elementalLord = skillbar->skills[0];
+    GW::Skill* elementalLordInfo = GW::SkillbarMgr::GetSkillConstantData(elementalLord.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(elementalLord.skill_id) && elementalLordInfo && CanUseSkill(elementalLord, elementalLordInfo, cur_energy)) {
+        if (UseSkillWithTimer(0)) return true;
     };
 
     GW::SkillbarSkill fireAttunement = skillbar->skills[7];
@@ -176,6 +181,11 @@ bool ElementalistSidekick::SetUpCombatSkills(uint32_t called_target) {
         if (UseSkillWithTimer(7)) return true;
     };
 
+    GW::SkillbarSkill auraOfRestoration = skillbar->skills[6];
+    GW::Skill* auraOfRestorationInfo = GW::SkillbarMgr::GetSkillConstantData(auraOfRestoration.skill_id);
+    if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
+        if (UseSkillWithTimer(6)) return true;
+    };
 
     return false;
 }

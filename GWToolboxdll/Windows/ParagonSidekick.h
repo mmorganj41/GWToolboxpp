@@ -39,4 +39,5 @@ private:
     GW::AgentLiving* moving_ally = nullptr;
     GW::AgentLiving* wild_blow_target = nullptr;
     std::unordered_map<uint32_t, SkillDuration> stanceMap = {};
+    clock_t saveYourselvesTimer = 0;
 };

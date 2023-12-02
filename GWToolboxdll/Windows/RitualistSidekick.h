@@ -31,9 +31,14 @@ public:
     void ResetTargetValues() override;
 
 private:
-    bool hasLife = false;
-    bool hasVampirism = false;
-    GW::AgentLiving* allyWithCondition = nullptr;
     GW::AgentLiving* deadAlly = nullptr;
-    bool spiritInEarshot = false;
+    bool hasShelter = false;
+    bool hasUnion = false;
+    bool hasDisplacement = false;
+    bool newShelter = false;
+    bool newSpirit = false;
+    bool spiritInEarshot = true;
+    bool lowHealthSpirit = false;
+
+    clock_t armorOfUnfeelingTimer = 0;
 };
