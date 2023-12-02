@@ -325,7 +325,7 @@ void MonkSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t 
 
     if (!agentLiving) return;
 
-    if (!(party_ids.contains(agentLiving->agent_id) || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol) return;
+    if (!((party_ids.contains(agentLiving->agent_id) || agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet) && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::monk_symbol)) return;
     
     Log::Info("monk effect removed");
 
