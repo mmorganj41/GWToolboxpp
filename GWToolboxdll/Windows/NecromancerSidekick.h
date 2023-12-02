@@ -37,6 +37,7 @@ public:
     void SkillFinishCallback(const uint32_t caster_id);
     void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
+    bool SetUpCombatSkills(uint32_t called_target_id) override;  
 
 private:
 

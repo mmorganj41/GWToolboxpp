@@ -193,6 +193,37 @@ void NecromancerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
     }
 }
 
+bool NecromancerSidekick::SetUpCombatSkills(uint32_t called_target_id){
+    UNREFERENCED_PARAMETER(called_target_id);
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    if (!skillbar) {
+        return false;
+    }
+
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
+
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (isCasting(sidekickLiving)) {
+        return false;
+    }
+
+    GW::SkillbarSkill cultistsFervor = skillbar->skills[0];
+    GW::Effect* cultistsFervorEffect = GW::Effects::GetPlayerEffectBySkillId(cultistsFervor.skill_id);
+    if (!cultistsFervorEffect || cultistsFervorEffect->GetTimeRemaining() < 500) {
+        if (cur_energy > 5 && !cultistsFervor.GetRecharge()) {
+            if (UseSkillWithTimer(0)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+};
+
 bool NecromancerSidekick::UseCombatSkill() {
     GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
     if (!skillbar) {
