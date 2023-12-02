@@ -291,6 +291,15 @@ bool NecromancerSidekick::UseCombatSkill() {
         }
     }
 
+    GW::SkillbarSkill darkFury = skillbar->skills[1];
+    GW::Skill* darkFuryInfo = GW::SkillbarMgr::GetSkillConstantData(darkFury.skill_id);
+    if (sidekickLiving->hp > .45 && orderOfPainInfo && CanUseSkill(darkFury, darkFuryInfo, cur_energy)) {
+        GW::Effect* darkFuryEffect = GW::Effects::GetPlayerEffectBySkillId(darkFury.skill_id);
+        if ((!darkFuryEffect || darkFuryEffect->GetTimeRemaining() < 1500) && UseSkillWithTimer(1)) {
+            return true;
+        }
+    }
+
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     if (!target) return false;
@@ -299,14 +308,6 @@ bool NecromancerSidekick::UseCombatSkill() {
     GW::Skill* bloodBondInfo = GW::SkillbarMgr::GetSkillConstantData(bloodBond.skill_id);
     if (!bloodBondMap.contains(target->agent_id) && target->hp > .25 && bloodBondInfo && CanUseSkill(bloodBond, bloodBondInfo, cur_energy)) {
         if (UseSkillWithTimer(3, target->agent_id)) {
-            return true;
-        }
-    }
-
-    GW::SkillbarSkill vampiricGaze = skillbar->skills[1];
-    GW::Skill* vampiricGazeInfo = GW::SkillbarMgr::GetSkillConstantData(vampiricGaze.skill_id);
-    if (target->hp > .25 && vampiricGazeInfo && CanUseSkill(vampiricGaze, vampiricGazeInfo, cur_energy)) {
-        if (UseSkillWithTimer(1, target->agent_id)) {
             return true;
         }
     }
