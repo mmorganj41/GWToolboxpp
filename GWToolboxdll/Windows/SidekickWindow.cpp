@@ -672,7 +672,7 @@ void SidekickWindow::Update(float delta)
                     if (!finishes_attacks || (finishes_attacks && TIMER_DIFF(timers.attackStartTimer) > 1000 * sidekick->weapon_attack_speed * sidekick->attack_speed_modifier / 2 + 50)) {
                         timers.kiteTimer = TIMER_INIT();
                         kiting_location = closest_enemy->pos;
-                        Log::Info("Kiting");
+                        Log::Info(wardEffect ? "Kiting With Ward" : "Kiting");
                         state = Kiting;
                         return;
                     }
@@ -983,7 +983,7 @@ float SidekickWindow::CalculateAngleToMoveAway(GW::GamePos position_away, GW::Ga
 
     const float angleAwayFromGroup = std::atan2f(player_position.y - group_position.y, player_position.x - group_position.x);
 
-    return (angleAwayFromEpicenter - angleAwayFromGroup * percentOfRadius) / 2;
+    return ((1.0f - percentOfRadius) * angleAwayFromEpicenter + angleAwayFromGroup * percentOfRadius);
 }
 
 GW::GamePos SidekickWindow::CalculateInitialPosition(GW::GamePos player_position, GW::GamePos group_position, size_t idx, float distance) {
