@@ -46,6 +46,7 @@ private:
     GW::AgentLiving* lowestHealthNonParty = nullptr;
     GW::AgentLiving* lowestHealthIncludingPet = nullptr;
     GW::AgentLiving* vigorousSpiritAlly = nullptr;
+    GW::AgentLiving* deadAlly = nullptr;
 
     uint32_t damagedAllies = 0;
 };

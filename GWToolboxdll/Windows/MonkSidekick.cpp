@@ -39,6 +39,7 @@ namespace {
 } // namespace
 
 void MonkSidekick::HardReset() {
+    deadAlly = nullptr;
     vigorousSpiritAlly = nullptr;
     lowestHealthNonParty = nullptr;
     vigorousSpiritMap.clear();
@@ -49,6 +50,7 @@ void MonkSidekick::HardReset() {
 }
 
 void MonkSidekick::ResetTargetValues() {
+    deadAlly = nullptr;
     hexedAlly = nullptr;
     vigorousSpiritAlly = nullptr;
     lowestHealthNonParty = nullptr;
@@ -99,29 +101,34 @@ void MonkSidekick::SkillFinishCallback(const uint32_t caster_id) {
 bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
-    if (!agentLiving->GetIsAlive()) return false;
-
-    if ((party_ids.contains(agentLiving->agent_id) || (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !agentLiving->GetIsSpawned()))) {
-        if (agentLiving->GetIsHexed()) {
-            if (hexTimer == 0) hexTimer = TIMER_INIT();
-            bool already_casting = false;
-            if (TIMER_DIFF(hexTimer) > 80 + 2 * static_cast<int32_t>(ping)) {
-                for (auto& it : cureHexMap) {
-                    if (it.second == agentLiving->agent_id) already_casting = true;
+    if (!agentLiving->GetIsAlive()) {
+        if (!deadAlly && party_ids.contains(agentLiving->agent_id)) {
+            deadAlly = agentLiving;
+        }
+    } 
+    else {
+        if ((party_ids.contains(agentLiving->agent_id) || (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !agentLiving->GetIsSpawned()))) {
+            if (agentLiving->GetIsHexed()) {
+                if (hexTimer == 0) hexTimer = TIMER_INIT();
+                bool already_casting = false;
+                if (TIMER_DIFF(hexTimer) > 80 + 2 * static_cast<int32_t>(ping)) {
+                    for (auto& it : cureHexMap) {
+                        if (it.second == agentLiving->agent_id) already_casting = true;
+                    }
                 }
+                if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
             }
-            if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
+            if (!vigorousSpiritMap.contains(agentLiving->agent_id)) {
+                if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
+            }
+            if ((!lowestHealthIncludingPet || lowestHealthIncludingPet->hp > agentLiving->hp)) lowestHealthIncludingPet = agentLiving;
+            if (party_ids.contains(agentLiving->agent_id) && agentLiving->hp < .8) {
+                damagedAllies += 1;
+            }
         }
-        if (!vigorousSpiritMap.contains(agentLiving->agent_id)) {
-            if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
+        else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable) {
+            if ((!lowestHealthNonParty || lowestHealthNonParty->hp > agentLiving->hp)) lowestHealthNonParty = agentLiving;
         }
-        if ((!lowestHealthIncludingPet || lowestHealthIncludingPet->hp > agentLiving->hp)) lowestHealthIncludingPet = agentLiving;
-        if (party_ids.contains(agentLiving->agent_id) && agentLiving->hp < .8) {
-            damagedAllies += 1;
-        }
-    }
-    else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable ) {
-        if ((!lowestHealthNonParty || lowestHealthNonParty->hp > agentLiving->hp)) lowestHealthNonParty = agentLiving;
     }
     return false;
 }
@@ -240,6 +247,17 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
 
+    if (!(lowest_health_ally && lowest_health_ally->hp < .6) && deadAlly) {
+        GW::SkillbarSkill resurrect = skillbar->skills[7];
+        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(resurrect.skill_id);
+        if (skillInfo && CanUseSkill(resurrect, skillInfo, cur_energy)) {
+            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
+                return true;
+            }
+        }
+    }
+
+
     return false;
 }
 
@@ -283,6 +301,16 @@ bool MonkSidekick::UseOutOfCombatSkill()
                 if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
                     return true;
                 }
+            }
+        }
+    }
+
+    if (!(lowest_health_ally && lowest_health_ally->hp < .6) && deadAlly) {
+        GW::SkillbarSkill resurrect = skillbar->skills[7];
+        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(resurrect.skill_id);
+        if (skillInfo && CanUseSkill(resurrect, skillInfo, cur_energy)) {
+            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
+                return true;
             }
         }
     }

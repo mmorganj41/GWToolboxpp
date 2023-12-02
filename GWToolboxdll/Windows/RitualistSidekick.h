@@ -31,10 +31,10 @@ public:
     void ResetTargetValues() override;
 
 private:
-    GW::AgentLiving* deadAlly = nullptr;
+    GW::AgentLiving* weaponAlly = nullptr;
     bool hasShelter = false;
     bool hasUnion = false;
-    bool hasDisplacement = false;
+    bool hasEarthbind = false;
     bool newShelter = false;
     bool newSpirit = false;
     bool spiritInEarshot = true;

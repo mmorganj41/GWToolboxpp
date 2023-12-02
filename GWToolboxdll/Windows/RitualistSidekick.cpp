@@ -44,17 +44,18 @@ namespace {
 void RitualistSidekick::ResetTargetValues() {
     hasShelter = false;
     hasUnion = false;
-    hasDisplacement = false;
-    deadAlly = nullptr;
+    hasEarthbind = false;
     spiritInEarshot = true;
     lowHealthSpirit = false;
+    weaponAlly = nullptr;
 }
 
 bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
+    if (!agentLiving->GetIsAlive()) return false;
+
     switch (agentLiving->allegiance) {
-         case GW::Constants::Allegiance::Spirit_Pet: 
-         if (!agentLiving->GetIsAlive()) return false;
+        case GW::Constants::Allegiance::Spirit_Pet: 
          {
             const float distance = GW::GetSquareDistance(playerLiving->pos, agentLiving->pos); 
              if (distance <= GW::Constants::SqrRange::Compass) switch (agentLiving->player_number) {
@@ -71,22 +72,44 @@ bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLivi
                          if (agentLiving->hp < .65) lowHealthSpirit = true;
                          return true;
                      }
-                     case 4217: {
-                         hasDisplacement = true;
+                     case 4222: {
+                         hasEarthbind = true;
                          if (distance > GW::Constants::SqrRange::Earshot) spiritInEarshot = false;
                          if (agentLiving->hp < .65) lowHealthSpirit = true;
                          return true;
                      }
+                     default: {
+                         if (!weaponAlly && !agentLiving->GetIsSpawned() && !agentLiving->GetIsWeaponSpelled()) {
+                             weaponAlly = agentLiving;
+                         }
+                     }
              }
              break;
          }
-         case GW::Constants::Allegiance::Ally_NonAttackable: {
-            if (party_ids.contains(agentLiving->agent_id) && !agentLiving->GetIsAlive() && !deadAlly) {
-             deadAlly = agentLiving;
-            }
-             break;
+         case GW::Constants::Allegiance::Ally_NonAttackable:
+         {
+             if (!weaponAlly && party_ids.contains(agentLiving->agent_id) && !agentLiving->GetIsWeaponSpelled()) {
+                 switch (agentLiving->weapon_type) {
+                     case 2:
+                     case 3:
+                     case 4:
+                     case 5:
+                     case 6:
+                     case 7:
+                     {
+                         weaponAlly = agentLiving;
+                         break;
+                     }
+                     case 1:
+                     {
+                         if (agentLiving->attack_speed_modifier > 1) {
+                             weaponAlly = agentLiving;
+                         }
+                         break;
+                     }
+                 }
+             }
          }
-
     }
 
     return false;
@@ -148,9 +171,9 @@ bool RitualistSidekick::UseCombatSkill() {
             }
         }
 
-        if (!hasDisplacement) {
-            GW::SkillbarSkill displacement = skillbar->skills[3];
-            if (!displacement.GetRecharge()) {
+        if (!hasEarthbind) {
+            GW::SkillbarSkill earthbind = skillbar->skills[3];
+            if (!earthbind.GetRecharge()) {
                 if (UseSkillWithTimer(3, 0U, 2000)) {
                      newSpirit = true;
                      return true;
@@ -170,27 +193,27 @@ bool RitualistSidekick::UseCombatSkill() {
         }
     }
 
-    if (hasUnion && hasShelter && hasDisplacement && spiritInEarshot && armorOfUnfeelingTimer == 0) {
+    if (hasUnion && hasShelter && hasEarthbind && spiritInEarshot) {
         GW::SkillbarSkill armorOfUnfeeling = skillbar->skills[4];
-        if (cur_energy > 5 && !armorOfUnfeeling.GetRecharge()) {
+        if (armorOfUnfeelingTimer == 0 && cur_energy > 5 && !armorOfUnfeeling.GetRecharge()) {
             if (UseSkillWithTimer(4)) {
                 armorOfUnfeelingTimer = TIMER_INIT();
                 newSpirit = false;
                 return true;
             }
         }
-
-    }
-    
-    if (sidekickLiving->hp > .75 && deadAlly) {
-        GW::SkillbarSkill fleshOfMyFlesh = skillbar->skills[7];
-        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(fleshOfMyFlesh.skill_id);
-        if (skillInfo && CanUseSkill(fleshOfMyFlesh, skillInfo, cur_energy)) {
-            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
-                return true;
+        if (weaponAlly && cur_energy > 18) {
+            GW::SkillbarSkill greatDwarfWeapon = skillbar->skills[7];
+            GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(greatDwarfWeapon.skill_id);
+            if (skillInfo && CanUseSkill(greatDwarfWeapon, skillInfo, cur_energy)) {
+                if (UseSkillWithTimer(7, weaponAlly->agent_id)) {
+                     return true;
+                }
             }
         }
     }
+    
+
 
     return false;
  }
@@ -214,17 +237,6 @@ bool RitualistSidekick::UseOutOfCombatSkill() {
             if (UseSkillWithTimer(0)) return true;
         }
     }
-
-    if (sidekickLiving->hp > .75 && deadAlly) {
-        GW::SkillbarSkill fleshOfMyFlesh = skillbar->skills[7];
-        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(fleshOfMyFlesh.skill_id);
-        if (skillInfo && CanUseSkill(fleshOfMyFlesh, skillInfo, cur_energy)) {
-            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
-                return true;
-            }
-        }
-    }
-
     return false; 
 }
 
@@ -270,7 +282,7 @@ bool RitualistSidekick::SetUpCombatSkills(uint32_t called_target_id) {
         if (!hasShelter) {
             GW::SkillbarSkill shelter = skillbar->skills[1];
             if (!shelter.GetRecharge()) {
-                if (UseSkillWithTimer(1)) {
+                if (UseSkillWithTimer(1, 0U, 2000)) {
                      newShelter = true;
                      newSpirit = true;
                      return true;
@@ -280,7 +292,7 @@ bool RitualistSidekick::SetUpCombatSkills(uint32_t called_target_id) {
         else if (!hasUnion || newShelter) {
             GW::SkillbarSkill unionSkill = skillbar->skills[2];
             if (!unionSkill.GetRecharge()) {
-                if (UseSkillWithTimer(2)) {
+                if (UseSkillWithTimer(2, 0U, 2000)) {
                      newShelter = false;
                      newSpirit = true;
                      return true;
@@ -288,10 +300,10 @@ bool RitualistSidekick::SetUpCombatSkills(uint32_t called_target_id) {
             }
         }
 
-        if (!hasDisplacement) {
-            GW::SkillbarSkill displacement = skillbar->skills[3];
-            if (!displacement.GetRecharge()) {
-                if (UseSkillWithTimer(3)) {
+        if (!hasEarthbind) {
+            GW::SkillbarSkill earthbind = skillbar->skills[3];
+            if (!earthbind.GetRecharge()) {
+                if (UseSkillWithTimer(3, 0U, 2000)) {
                      newSpirit = true;
                      return true;
                 }
@@ -304,9 +316,9 @@ bool RitualistSidekick::SetUpCombatSkills(uint32_t called_target_id) {
 
 void RitualistSidekick::HardReset()
 {
-    deadAlly = nullptr;
+    weaponAlly = nullptr;
     hasShelter = false;
     hasUnion = false;
-    hasDisplacement = false;
+    hasEarthbind = false;
     spiritInEarshot = true;
 }

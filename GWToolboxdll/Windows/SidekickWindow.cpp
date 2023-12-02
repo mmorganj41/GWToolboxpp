@@ -590,7 +590,7 @@ void SidekickWindow::Update(float delta)
                 if (!(info && info->players.valid()))
                     return;
 
-                if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) > GW::Constants::Range::Spellcast + GW::Constants::Range::Area)) {
+                if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) > GW::Constants::Range::Spellcast + GW::Constants::Range::Area / 2)) {
                     wardEffect = std::nullopt;
                 }
 
@@ -709,7 +709,8 @@ void SidekickWindow::Update(float delta)
                 }
                 if (kiting_location && group_center) {
                     float new_angle = CalculateAngleToMoveAway(*kiting_location, sidekick->pos, *group_center, wardEffect ? GW::Constants::Range::Area : GW::Constants::Range::Earshot);
-                    GW::GamePos new_position = {sidekick->pos.x + std::cosf(new_angle) * GW::Constants::Range::Area, sidekick->pos.y + std::sinf(new_angle) * GW::Constants::Range::Area, sidekick->pos.zplane};
+                    float distance = wardEffect ? GW::Constants::Range::Area / 2 : GW::Constants::Range::Earshot / 2;
+                    GW::GamePos new_position = {sidekick->pos.x + std::cosf(new_angle) * distance, sidekick->pos.y + std::sinf(new_angle) * distance, sidekick->pos.zplane};
                     GW::Agents::Move(new_position);
                     kiting_location = std::nullopt;
                     return;
@@ -976,7 +977,7 @@ bool SidekickWindow::SetUpCombatSkills(uint32_t called_target_id)
 }
 
 float SidekickWindow::CalculateAngleToMoveAway(GW::GamePos position_away, GW::GamePos player_position, GW::GamePos group_position, float distance) {
-    const float percentOfRadius = GW::GetDistance(group_position, player_position) / distance;
+    const float percentOfRadius = GW::GetDistance(group_position, player_position) / (distance / 2);
 
     const float angleAwayFromEpicenter = std::atan2f(player_position.y - position_away.y, player_position.x - position_away.x);
 
