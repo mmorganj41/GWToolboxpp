@@ -394,16 +394,14 @@ void SidekickWindow::Update(float delta)
                 switch (agentLiving->allegiance) {
                     case GW::Constants::Allegiance::Enemy: {
                         if (!agentLiving->GetIsAlive()) continue;
-                        if (agentLiving->pos.zplane == sidekick->pos.zplane) {
-                            if (GW::GetDistance(sidekick->pos, agentLiving->pos) > GW::Constants::Range::Spellcast * 11 / 10 && !(agentLiving->GetIsCasting() || agentLiving->GetIsAttacking())) continue;
-                            if (!closest_enemy) {
-                                closest_enemy = agentLiving;
-                            }
-                            else if (GW::GetSquareDistance(sidekick->pos, agentLiving->pos) < GW::GetSquareDistance(sidekick->pos, closest_enemy->pos)) {
-                                closest_enemy = agentLiving;
-                            }
-                            if (agentLiving->hp < 1.0f && GW::GetDistance(sidekick->pos, agentLiving->pos) < GW::Constants::Range::Spellcast * 6/5 && (!lowest_health_enemy || lowest_health_enemy->hp > agentLiving->hp)) lowest_health_enemy = agentLiving;
+                        if (GW::GetDistance(sidekick->pos, agentLiving->pos) > GW::Constants::Range::Spellcast * 11 / 10 && !(agentLiving->GetIsCasting() || agentLiving->GetIsAttacking())) continue;
+                        if (!closest_enemy) {
+                            closest_enemy = agentLiving;
                         }
+                        else if (GW::GetSquareDistance(sidekick->pos, agentLiving->pos) < GW::GetSquareDistance(sidekick->pos, closest_enemy->pos)) {
+                            closest_enemy = agentLiving;
+                        }
+                        if (agentLiving->hp < 1.0f && GW::GetDistance(sidekick->pos, agentLiving->pos) < GW::Constants::Range::Spellcast * 6/5 && (!lowest_health_enemy || lowest_health_enemy->hp > agentLiving->hp)) lowest_health_enemy = agentLiving;
                         break;
                     }
                     case GW::Constants::Allegiance::Ally_NonAttackable: {
