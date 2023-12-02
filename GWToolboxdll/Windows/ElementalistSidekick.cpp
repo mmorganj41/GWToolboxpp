@@ -84,6 +84,11 @@ bool ElementalistSidekick::UseCombatSkill()
         if (UseSkillWithTimer(6)) return true;
     };
 
+    GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
+    if (cur_energy > 10 && !vanguardBannerOfHonor.GetRecharge() && closest_enemy && GW::GetDistance(closest_enemy->pos, sidekickLiving->pos) <= GW::Constants::Range::Spellcast && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id)) {
+        if (UseSkillWithTimer(5)) return true;
+    }
+
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     if (sidekickLiving->max_energy - cur_energy > 10 && burningTarget) {

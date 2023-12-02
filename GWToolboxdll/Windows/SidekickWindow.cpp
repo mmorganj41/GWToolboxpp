@@ -45,6 +45,7 @@ namespace {
     bool first_message = true;
     uint32_t dialog_id = 0;
     uint32_t dialog_type = 0;
+    bool first_move = true;
 } // namespace
 
 bool SidekickWindow::GetEnabled() { return enabled; }
@@ -166,6 +167,7 @@ void SidekickWindow::Update(float delta)
     if (!enabled) {
         party_ids = {};
         party_leader_id = 0;
+        wardEffect = std::nullopt;
         HardReset();
         return;
     }
@@ -175,13 +177,14 @@ void SidekickWindow::Update(float delta)
     if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading || GW::Map::GetIsInCinematic()) {
         party_ids = {};
         party_leader_id = 0;
+        wardEffect = std::nullopt;
         HardReset();
         if (GW::Map::GetIsInCinematic()) {
             GW::Map::SkipCinematic();
         }
     }
     else if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
-            if (party_invite != 0) {
+        if (party_invite != 0) {
             GW::PartyMgr::RespondToPartyRequest(party_invite, true);
             party_invite = 0;
             Log::Info("Invite accept");
@@ -261,6 +264,7 @@ void SidekickWindow::Update(float delta)
         else {
             party_ids = {};
             party_leader_id = 0;
+            wardEffect = std::nullopt;
         }
     }
     else {
@@ -307,64 +311,71 @@ void SidekickWindow::Update(float delta)
         std::optional<GW::GamePos> sum_position = std::nullopt;
         size_t sidekick_position = 0;
         size_t party_count = 0;
-        if (party->players.valid())
-            for (size_t i = 0; i < party->players.size(); i++) {
-                if (!party->players[i].connected()) continue;
-                const uint32_t agentId = GW::Agents::GetAgentIdByLoginNumber(party->players[i].login_number);
-                GW::Agent* agent = GW::Agents::GetAgentByID(agentId);
-                GW::AgentLiving* player = agent ? agent->GetAsAgentLiving() : nullptr;
-                if (!player) continue;
-                if (player->agent_id == sidekick->agent_id) sidekick_position = i;
-                if (player->GetIsAlive() && player->pos.zplane == sidekick->pos.zplane) {
-                    if (!sum_position) {
-                        sum_position = player->pos;
-                        party_count += 1;
-                    }
-                    else if (sum_position->zplane == player->pos.zplane) {
-                        sum_position->x += player->pos.x;
-                        sum_position->y += player->pos.y;
-                        party_count += 1;
-                    }
-                }
-            }
-        if (party->heroes.valid())
-            for (size_t i = 0; i < party->heroes.size(); i++) {
-                if (!party->heroes[i].agent_id) continue;
-                GW::Agent* agent = GW::Agents::GetAgentByID(party->heroes[i].agent_id);
-                GW::AgentLiving* hero = agent ? agent->GetAsAgentLiving() : nullptr;
-                if (hero && hero->GetIsAlive() && hero->pos.zplane == sidekick->pos.zplane) {
-                    if (!sum_position) {
-                        sum_position = hero->pos;
-                        party_count += 1;
-                    }
-                    else if (sum_position->zplane == hero->pos.zplane) {
-                        sum_position->x += hero->pos.x;
-                        sum_position->y += hero->pos.y;
-                        party_count += 1;
-                    }
-                }
-            }
-        if (party->henchmen.valid())
-            for (size_t i = 0; i < party->henchmen.size(); i++) {
-                if (!party->henchmen[i].agent_id) continue;
-                GW::Agent* agent = GW::Agents::GetAgentByID(party->henchmen[i].agent_id);
-                GW::AgentLiving* henchman = agent ? agent->GetAsAgentLiving() : nullptr;
-                if (henchman && henchman->GetIsAlive() && henchman->pos.zplane == sidekick->pos.zplane) {
-                    if (!sum_position) {
-                        sum_position = henchman->pos;
-                        party_count += 1;
-                    }
-                    else if (sum_position->zplane == henchman->pos.zplane) {
-                        sum_position->x += henchman->pos.x;
-                        sum_position->y += henchman->pos.y;
-                        party_count += 1;
-                    }
-                }
-            }
+        if (wardEffect && TIMER_DIFF(wardEffect->skillDuration.startTime) > static_cast<int32_t>(wardEffect->skillDuration.duration)) wardEffect = std::nullopt;
 
-        if (!sum_position || !party_count) return;
+        if (wardEffect) {
+            group_center = wardEffect->position;
+        }
+        else {
+            if (party->players.valid())
+                for (size_t i = 0; i < party->players.size(); i++) {
+                    if (!party->players[i].connected()) continue;
+                    const uint32_t agentId = GW::Agents::GetAgentIdByLoginNumber(party->players[i].login_number);
+                    GW::Agent* agent = GW::Agents::GetAgentByID(agentId);
+                    GW::AgentLiving* player = agent ? agent->GetAsAgentLiving() : nullptr;
+                    if (!player) continue;
+                    if (player->agent_id == sidekick->agent_id) sidekick_position = i;
+                    if (player->GetIsAlive() && player->pos.zplane == sidekick->pos.zplane) {
+                        if (!sum_position) {
+                            sum_position = player->pos;
+                            party_count += 1;
+                        }
+                        else if (sum_position->zplane == player->pos.zplane) {
+                            sum_position->x += player->pos.x;
+                            sum_position->y += player->pos.y;
+                            party_count += 1;
+                        }
+                    }
+                }
+            if (party->heroes.valid())
+                for (size_t i = 0; i < party->heroes.size(); i++) {
+                    if (!party->heroes[i].agent_id) continue;
+                    GW::Agent* agent = GW::Agents::GetAgentByID(party->heroes[i].agent_id);
+                    GW::AgentLiving* hero = agent ? agent->GetAsAgentLiving() : nullptr;
+                    if (hero && hero->GetIsAlive() && hero->pos.zplane == sidekick->pos.zplane) {
+                        if (!sum_position) {
+                            sum_position = hero->pos;
+                            party_count += 1;
+                        }
+                        else if (sum_position->zplane == hero->pos.zplane) {
+                            sum_position->x += hero->pos.x;
+                            sum_position->y += hero->pos.y;
+                            party_count += 1;
+                        }
+                    }
+                }
+            if (party->henchmen.valid())
+                for (size_t i = 0; i < party->henchmen.size(); i++) {
+                    if (!party->henchmen[i].agent_id) continue;
+                    GW::Agent* agent = GW::Agents::GetAgentByID(party->henchmen[i].agent_id);
+                    GW::AgentLiving* henchman = agent ? agent->GetAsAgentLiving() : nullptr;
+                    if (henchman && henchman->GetIsAlive() && henchman->pos.zplane == sidekick->pos.zplane) {
+                        if (!sum_position) {
+                            sum_position = henchman->pos;
+                            party_count += 1;
+                        }
+                        else if (sum_position->zplane == henchman->pos.zplane) {
+                            sum_position->x += henchman->pos.x;
+                            sum_position->y += henchman->pos.y;
+                            party_count += 1;
+                        }
+                    }
+                }
 
-        group_center = {sum_position->x / party_count, sum_position->y / party_count, sum_position->zplane};
+            if (!sum_position || !party_count) return;
+
+            group_center = {sum_position->x / party_count, sum_position->y / party_count, sum_position->zplane};
+        }
 
         GW::Agent* leader = GW::Agents::GetAgentByID(party_leader_id);
         GW::AgentLiving* party_leader = leader ? leader->GetAsAgentLiving() : nullptr;
@@ -458,9 +469,17 @@ void SidekickWindow::Update(float delta)
 
         if (sidekick->GetIsMoving()) {
             timers.lastInteract = TIMER_INIT();
+            if (first_move) {
+                timers.movingTime = TIMER_INIT();
+            }
+        }
+        else {
+            first_move = true;
         }
 
         if (state == Following || state == Picking_up) {
+            wardEffect = std::nullopt;
+
             if (!still_in_combat && closest_enemy && (GW::GetDistance(closest_enemy->pos, party_leader->pos) <= GW::Constants::Range::Earshot || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
                 if (!starting_combat) {
                     starting_combat = true;
@@ -571,6 +590,10 @@ void SidekickWindow::Update(float delta)
                 if (!(info && info->players.valid()))
                     return;
 
+                if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) > GW::Constants::Range::Spellcast + GW::Constants::Range::Area)) {
+                    wardEffect = std::nullopt;
+                }
+
                 if (combat_start) {
                     if (!group_center) combat_start = false; 
                     if (!triggered_move) {
@@ -655,7 +678,7 @@ void SidekickWindow::Update(float delta)
                     }
                 }
 
-                if (should_stay_near_center && isUncentered(sidekick) && !sidekick->GetIsMoving() && TIMER_DIFF(timers.followTimer) > 2000 + rand() % 100)
+                if ((should_stay_near_center || wardEffect) && isUncentered(sidekick) && !sidekick->GetIsMoving() && TIMER_DIFF(timers.followTimer) > 2000 + rand() % 100)
                     {
                     Log::Info("Staying near center");
                     GW::Agents::Move(*group_center);
@@ -668,7 +691,7 @@ void SidekickWindow::Update(float delta)
 
                 if (!(targetLiving && targetLiving->GetIsAlive())) return;
 
-                if (!sidekick->GetIsAttacking() && !sidekick->GetIsMoving() && sidekick->GetIsIdle() && TIMER_DIFF(timers.interactTimer) > 750 + rand() % 500) {
+                if (!sidekick->GetIsAttacking() && (!sidekick->GetIsMoving() || (sidekick->GetIsMoving() && TIMER_DIFF(timers.movingTime) > 1000 * sidekick->weapon_attack_speed * sidekick->attack_speed_modifier / 2 + 50 )) && sidekick->GetIsIdle() && TIMER_DIFF(timers.interactTimer) > 750 + rand() % 500) {
                     timers.interactTimer = TIMER_INIT();
                     CheckStuck();
                     GW::GameThread::Enqueue([&]() -> void {
@@ -685,7 +708,7 @@ void SidekickWindow::Update(float delta)
                     return;
                 }
                 if (kiting_location && group_center) {
-                    float new_angle = CalculateAngleToMoveAway(*kiting_location, sidekick->pos, *group_center);
+                    float new_angle = CalculateAngleToMoveAway(*kiting_location, sidekick->pos, *group_center, wardEffect ? GW::Constants::Range::Area : GW::Constants::Range::Earshot);
                     GW::GamePos new_position = {sidekick->pos.x + std::cosf(new_angle) * GW::Constants::Range::Area, sidekick->pos.y + std::sinf(new_angle) * GW::Constants::Range::Area, sidekick->pos.zplane};
                     GW::Agents::Move(new_position);
                     kiting_location = std::nullopt;
@@ -704,7 +727,7 @@ void SidekickWindow::Update(float delta)
                 }
                 if (shouldInputScatterMove && epicenter && group_center && area_of_effect) {
                     shouldInputScatterMove = false;
-                    float new_angle = CalculateAngleToMoveAway(*kiting_location, sidekick->pos, *group_center); 
+                    float new_angle = CalculateAngleToMoveAway(*kiting_location, sidekick->pos, *group_center, wardEffect ? GW::Constants::Range::Area : GW::Constants::Range::Earshot); 
                     GW::GamePos new_position = {sidekick->pos.x + std::cosf(new_angle) * area_of_effect, sidekick->pos.y + std::sinf(new_angle) * area_of_effect, sidekick->pos.zplane};
                     GW::Agents::Move(new_position);
                     timers.scatterTimer = TIMER_INIT();
@@ -818,6 +841,15 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
         };
         case GenericValueID::effect_on_agent:
         case GenericValueID::effect_on_target: {
+            Log::Info("effect on target, %d", value);
+            if (party_ids.contains(caster_id) && value == 1938 && target_id) {
+                GW::Agent* agent = GW::Agents::GetAgentByID(*target_id);
+                if (agent) {
+                    SkillDuration skillDuration = {TIMER_INIT(), 16000};
+                    Ward ward = {agent->pos, skillDuration};
+                    wardEffect = ward;
+                }
+            }
             EffectOnTarget(*target_id, value);
             break;
         }
@@ -944,8 +976,8 @@ bool SidekickWindow::SetUpCombatSkills(uint32_t called_target_id)
     return false;
 }
 
-float SidekickWindow::CalculateAngleToMoveAway(GW::GamePos position_away, GW::GamePos player_position, GW::GamePos group_position) {
-    const float percentOfRadius = GW::GetDistance(group_position, player_position) / GW::Constants::Range::Earshot;
+float SidekickWindow::CalculateAngleToMoveAway(GW::GamePos position_away, GW::GamePos player_position, GW::GamePos group_position, float distance) {
+    const float percentOfRadius = GW::GetDistance(group_position, player_position) / distance;
 
     const float angleAwayFromEpicenter = std::atan2f(player_position.y - position_away.y, player_position.x - position_away.x);
 

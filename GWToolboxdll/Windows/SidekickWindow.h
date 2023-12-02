@@ -30,6 +30,7 @@ public:
         clock_t skillTimers[8];
         clock_t lastInteract;
         clock_t stuckTimer;
+        clock_t movingTime;
     };
 
     struct Proximity {
@@ -66,7 +67,7 @@ public:
 
     uint32_t ping = 0;
 
-    Timers timers = {0, 0, 0, 0, 0, 0, 0, 0, 0, {0,0,0,0,0,0,0,0}, 0, 0};
+    Timers timers = {0, 0, 0, 0, 0, 0, 0, 0, 0, {0,0,0,0,0,0,0,0}, 0, 0, 0};
 
     State state = Following;
     bool using_skill = false;
@@ -179,7 +180,7 @@ private:
     void GenericValueCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt);
     void OnServerPing(uint32_t packetPing);
 
-    float CalculateAngleToMoveAway(GW::GamePos epicenter, GW::GamePos player_position, GW::GamePos group_position);
+    float CalculateAngleToMoveAway(GW::GamePos epicenter, GW::GamePos player_position, GW::GamePos group_position, float distance = GW::Constants::Range::Earshot);
     GW::GamePos CalculateInitialPosition(GW::GamePos player_position, GW::GamePos group_position, size_t idx, float distance = GW::Constants::Range::Area);
 
     bool ShouldItemBePickedUp(GW::AgentItem* item);
@@ -238,4 +239,11 @@ private:
     void HandleInterrupts(const uint32_t value_id, const uint32_t caster_id, const uint32_t value);
 
     bool waitForInterrupt = false;
+
+    struct Ward {
+        GW::GamePos position;
+        SkillDuration skillDuration;
+    };
+
+    std::optional<Ward> wardEffect = std::nullopt;
 };
