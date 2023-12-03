@@ -311,7 +311,9 @@ void SidekickWindow::Update(float delta)
         std::optional<GW::GamePos> sum_position = std::nullopt;
         size_t sidekick_position = 0;
         size_t party_count = 0;
-        if (wardEffect && TIMER_DIFF(wardEffect->skillDuration.startTime) > static_cast<int32_t>(wardEffect->skillDuration.duration)) wardEffect = std::nullopt;
+        if (wardEffect && TIMER_DIFF(wardEffect->skillDuration.startTime) > static_cast<int32_t>(wardEffect->skillDuration.duration)) {
+            wardEffect = std::nullopt;
+        }
 
         if (wardEffect) {
             group_center = wardEffect->position;
@@ -590,7 +592,7 @@ void SidekickWindow::Update(float delta)
                 if (!(info && info->players.valid()))
                     return;
 
-                if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) > GW::Constants::Range::Spellcast + GW::Constants::Range::Area / 2)) {
+                if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) <= (GW::Constants::Range::Spellcast + GW::Constants::Range::Area / 2))) {
                     wardEffect = std::nullopt;
                 }
 
@@ -678,10 +680,14 @@ void SidekickWindow::Update(float delta)
                     }
                 }
 
-                if ((should_stay_near_center || wardEffect) && isUncentered(sidekick) && !sidekick->GetIsMoving() && TIMER_DIFF(timers.followTimer) > 2000 + rand() % 100)
+                if ((should_stay_near_center || wardEffect) && group_center && isUncentered(sidekick) &&
+                    (!sidekick->GetIsMoving() || (sidekick->GetIsMoving() && TIMER_DIFF(timers.movingTime) > 1000 * sidekick->weapon_attack_speed * sidekick->attack_speed_modifier / 2 + 50)) && TIMER_DIFF(timers.followTimer) > 2000 + rand() % 100)
                     {
                     Log::Info("Staying near center");
-                    GW::Agents::Move(*group_center);
+                    float ratio = (GW::Constants::Range::Area - 50 ) / GW::GetDistance(*group_center, sidekick->pos);
+                    
+                    GW::GamePos new_position = {group_center->x + (sidekick->pos.x - group_center->x) * ratio, group_center->y + (sidekick->pos.y - group_center->y) * ratio, group_center->zplane};
+                    GW::Agents::Move(new_position);
                     timers.followTimer = TIMER_INIT();
                 }
 
@@ -842,8 +848,8 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
         };
         case GenericValueID::effect_on_agent:
         case GenericValueID::effect_on_target: {
-            if (party_ids.contains(caster_id) && value == 1938 && target_id) {
-                GW::Agent* agent = GW::Agents::GetAgentByID(*target_id);
+            if (party_ids.contains(caster_id) && value == 1938) {
+                GW::Agent* agent = GW::Agents::GetAgentByID(caster_id);
                 if (agent) {
                     SkillDuration skillDuration = {TIMER_INIT(), 16000};
                     Ward ward = {agent->pos, skillDuration};
