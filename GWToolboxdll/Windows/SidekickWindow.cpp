@@ -983,7 +983,7 @@ bool SidekickWindow::SetUpCombatSkills(uint32_t called_target_id)
 }
 
 float SidekickWindow::CalculateAngleToMoveAway(GW::GamePos position_away, GW::GamePos player_position, GW::GamePos group_position, float distance) {
-    const float percentOfRadius = GW::GetDistance(group_position, player_position) / (distance * 1.3);
+    const float percentOfRadius = GW::GetDistance(group_position, player_position) / (distance * 1.3f);
 
     const float angleAwayFromEpicenter = std::atan2f(player_position.y - position_away.y, player_position.x - position_away.x);
 
