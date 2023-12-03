@@ -87,9 +87,15 @@ bool ElementalistSidekick::UseCombatSkill()
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
-    if (target && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4 && cur_energy > 10 && !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id)) {
+    if (target && cur_energy > 10 && !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id)) {
+        if (GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
+            if (UseSkillWithTimer(5)) {
+                closeDistance = false;
+                return true;
+            }
+        }
         closeDistance = true;
-        if (UseSkillWithTimer(5)) return true;
+        
     }
     else {
         closeDistance = false;
