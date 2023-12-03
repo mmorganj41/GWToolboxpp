@@ -99,6 +99,7 @@ public:
     bool SetEnabled(bool b);
     bool GetEnabled();
     bool UseSkillWithTimer(uint32_t slot, uint32_t target = 0U, int32_t time = 500);
+    bool closeDistance = false;
 
     void ToggleEnable() { SetEnabled(!enabled); }
 
@@ -155,6 +156,13 @@ public:
         {GW::Constants::SkillType::Stance, SidekickWindow::SkillType::OTHER},      {GW::Constants::SkillType::Title, SidekickWindow::SkillType::OTHER},         {GW::Constants::SkillType::Trap, SidekickWindow::SkillType::OTHER},
         {GW::Constants::SkillType::Ward, SidekickWindow::SkillType::SPELL},        {GW::Constants::SkillType::WeaponSpell, SidekickWindow::SkillType::SPELL},   {GW::Constants::SkillType::WeaponSpell, SidekickWindow::SkillType::SPELL}};
     ;
+
+       struct Ward {
+        GW::GamePos position;
+        SkillDuration skillDuration;
+    };
+
+    std::optional<Ward> wardEffect = std::nullopt;
 
 private:
     bool enabled = false;
@@ -240,10 +248,5 @@ private:
 
     bool waitForInterrupt = false;
 
-    struct Ward {
-        GW::GamePos position;
-        SkillDuration skillDuration;
-    };
-
-    std::optional<Ward> wardEffect = std::nullopt;
+ 
 };

@@ -39,8 +39,6 @@
 namespace {
     uint32_t party_invite = 0;
     InventoryManager inventory_manager;
-    bool combat_start = false;
-    bool triggered_move = false;
     bool reposition = false;
     bool first_message = true;
     uint32_t dialog_id = 0;
@@ -113,7 +111,7 @@ void SidekickWindow::Initialize()
         UNREFERENCED_PARAMETER(status);
         if (!enabled) return;
         if (!packet) return;
-        if (packet->message[0] == 0x8AB && TIMER_DIFF(timers.obstructedTimer) > 2000) {
+        if (finishes_attacks && packet->message[0] == 0x8AB && TIMER_DIFF(timers.obstructedTimer) > 2000) {
             Log::Info("Obstructed");
             state = Obstructed; 
             timers.obstructedTimer = TIMER_INIT();
@@ -495,7 +493,6 @@ void SidekickWindow::Update(float delta)
                 timers.changeStateTimer = TIMER_INIT();
                 Log::Info("Entering combat...");
                 StartCombat();
-                combat_start = true;
                 state = Fighting;
                 if (sidekick->GetIsMoving())
                     GW::GameThread::Enqueue([]() -> void {
@@ -522,7 +519,6 @@ void SidekickWindow::Update(float delta)
                     GW::UI::Keypress(GW::UI::ControlAction::ControlAction_CancelAction);
                     return;
                 });
-                combat_start = true;
                 StopCombat();
                 interrupts.clear();
                 cast_times.clear();
@@ -596,32 +592,26 @@ void SidekickWindow::Update(float delta)
                     wardEffect = std::nullopt;
                 }
 
-                if (combat_start) {
-                    if (!group_center) combat_start = false; 
-                    if (!triggered_move) {
-                        Log::Info("Moving to starting position");
-                        if (!isCasting(sidekick)) {
-                            GW::Agents::Move(CalculateInitialPosition(party_leader->pos, *group_center, sidekick_position));
-                        }
-                        triggered_move = true;
-                    }
-                    else {
-                        if (TIMER_DIFF(timers.changeStateTimer) > 2000 || (!sidekick->GetIsMoving() && TIMER_DIFF(timers.changeStateTimer) > 250)) {
-                            triggered_move = false;
-                            combat_start = false;
-                        }
-                    }
-                }
-
                 if (group_center) {
                     float distance = GW::GetDistance(sidekick->pos, *group_center);
+                    GW::Agent* target = GW::Agents::GetTarget();
                     if ((!sidekick->GetIsMoving() && !isCasting(sidekick) && distance > GW::Constants::Range::Earshot) || distance > GW::Constants::Range::Spellcast * 3 / 2 && TIMER_DIFF(timers.followTimer) > 1000 + rand() % 100) {
                         Log::Info("Out of earshot");
-                        float percentToMove = (distance - GW::Constants::Range::Earshot) / GW::Constants::Range::Earshot;
-                        GW::GamePos new_position = { (group_center->x - sidekick->pos.x) * percentToMove, (group_center->y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane };
-                        GW::Agents::Move(*group_center);
+                        float percentToMove = (distance - GW::Constants::Range::Earshot) / distance;
+                        GW::GamePos new_position = { sidekick->pos.x + (group_center->x - sidekick->pos.x) * percentToMove, sidekick->pos.y + (group_center->y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane };
+                        GW::Agents::Move(new_position);
                         timers.followTimer = TIMER_INIT();
                         return;
+                    }
+                    else if (closeDistance && !sidekick->GetIsMoving() && !isCasting(sidekick) && target) {
+                        float distanceToTarget = GW::GetDistance(target->pos, sidekick->pos);
+                        if (distanceToTarget > GW::Constants::Range::Earshot) {
+                            Log::Info("Closing distance");
+                            float percentToMove = (distanceToTarget - GW::Constants::Range::Earshot) / distanceToTarget;
+                            GW::GamePos new_position = {sidekick->pos.x+(target->pos.x - sidekick->pos.x) * percentToMove, sidekick->pos.y+(target->pos.y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane};
+                            GW::Agents::Move(new_position);
+                            timers.followTimer = TIMER_INIT();
+                        }
                     }
                 }
 

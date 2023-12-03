@@ -84,12 +84,17 @@ bool ElementalistSidekick::UseCombatSkill()
         if (UseSkillWithTimer(6)) return true;
     };
 
+    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
+
     GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
-    if (cur_energy > 10 && !vanguardBannerOfHonor.GetRecharge() && closest_enemy && GW::GetDistance(closest_enemy->pos, sidekickLiving->pos) <= GW::Constants::Range::Spellcast && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id)) {
+    if (target && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4 && cur_energy > 10 && !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id)) {
+        closeDistance = true;
         if (UseSkillWithTimer(5)) return true;
     }
+    else {
+        closeDistance = false;
+    }
 
-    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     if (sidekickLiving->max_energy - cur_energy > 10 && burningTarget) {
         GW::SkillbarSkill glowingGaze = skillbar->skills[3];
