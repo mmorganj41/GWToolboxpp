@@ -90,7 +90,7 @@ bool ElementalistSidekick::UseCombatSkill()
         GW::SkillbarSkill glowingGaze = skillbar->skills[2];
         GW::Skill* glowingGazeInfo = GW::SkillbarMgr::GetSkillConstantData(glowingGaze.skill_id);
         if (glowingGazeInfo && CanUseSkill(glowingGaze, glowingGazeInfo, cur_energy)) {
-            if (UseSkillWithTimer(3, target && burningEffectSet.contains(target->agent_id) ? target->agent_id : burningTarget->agent_id)) return true;
+            if (UseSkillWithTimer(2, target && burningEffectSet.contains(target->agent_id) ? target->agent_id : burningTarget->agent_id)) return true;
         };
     }
 

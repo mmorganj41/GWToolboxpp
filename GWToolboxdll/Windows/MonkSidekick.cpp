@@ -182,7 +182,7 @@ bool MonkSidekick::UseCombatSkill() {
         return false;
     }
 
-    if (sidekickLiving->hp < .7) {
+    if (sidekickLiving->hp < .6) {
         GW::SkillbarSkill healingTouch = skillbar->skills[3];
         GW::Skill* healingTouchInfo = GW::SkillbarMgr::GetSkillConstantData(healingTouch.skill_id);
         if (CanUseSkill(healingTouch, healingTouchInfo, cur_energy)) {
@@ -190,6 +190,23 @@ bool MonkSidekick::UseCombatSkill() {
                 return true;
             }
         }
+    }
+
+    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
+
+    GW::SkillbarSkill vanguardBannerOfWisdom = skillbar->skills[5];
+    bool canUseWisdom = !vanguardBannerOfWisdom.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfWisdom.skill_id);
+    if (target && cur_energy > 10 && canUseWisdom) {
+        if (GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
+            if (UseSkillWithTimer(5)) {
+                closeDistance = false;
+                return true;
+            }
+        }
+        closeDistance = true;
+    }
+    else {
+        closeDistance = false;
     }
 
     if (hexedAlly) {
@@ -211,7 +228,7 @@ bool MonkSidekick::UseCombatSkill() {
     GW::SkillbarSkill vigorousSpirit = skillbar->skills[1];
     GW::Skill* vigorousSpiritInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
     
-    if (lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .55 || damagedAllies > 3)) {
+    if (lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .6 || damagedAllies > 3)) {
         if (UseSkillWithTimer(6, lowestHealthIncludingPet->agent_id)) {
             return true;
         }
@@ -224,11 +241,6 @@ bool MonkSidekick::UseCombatSkill() {
     }
     else if (vigorousSpiritAlly && vigorousSpiritAlly->hp < .95 && vigorousSpiritInfo && CanUseSkill(vigorousSpirit, vigorousSpiritInfo, cur_energy)) {
         if (UseSkillWithTimer(1, vigorousSpiritAlly->agent_id)) {
-            return true;
-        }
-    }
-    else if (lowest_health_ally && lowest_health_ally->hp < .7 && orisonOfHealingInfo && CanUseSkill(orisonOfHealing, orisonOfHealingInfo, cur_energy)) {
-        if (UseSkillWithTimer(0, lowest_health_ally->agent_id)) {
             return true;
         }
     }
