@@ -220,8 +220,6 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
 
-    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
-
     GW::SkillbarSkill burstOfHealing = skillbar->skills[6];
     GW::SkillbarSkill orisonOfHealing = skillbar->skills[6];
     GW::Skill* orisonOfHealingInfo = GW::SkillbarMgr::GetSkillConstantData(orisonOfHealing.skill_id);
