@@ -357,7 +357,7 @@ void MesmerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caste
 
         switch (skillId) {
             case GW::Constants::SkillID::Shatter_Hex:
-            case GW::Constants::SkillID::Cure_Hex: {
+            case GW::Constants::SkillID::Remove_Hex: {
                 cureHexMap.insert_or_assign(living_agent->agent_id, *target_id);
                 break;
             }

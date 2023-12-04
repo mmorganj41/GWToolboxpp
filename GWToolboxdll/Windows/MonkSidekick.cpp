@@ -81,7 +81,7 @@ void MonkSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_
 
     switch (skillId) {
         case GW::Constants::SkillID::Shatter_Hex:
-        case GW::Constants::SkillID::Cure_Hex: {
+        case GW::Constants::SkillID::Remove_Hex: {
             cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
         }
     }

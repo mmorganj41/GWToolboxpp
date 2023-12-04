@@ -112,8 +112,7 @@ bool ElementalistSidekick::UseCombatSkill()
 
     GW::SkillbarSkill searingFlames = skillbar->skills[1];
     GW::SkillbarSkill fireball = skillbar->skills[2];
-    GW::SkillbarSkill fireStorm = skillbar->skills[4];
-    if (cur_energy > 10 && (!searingFlames.GetRecharge() || !fireball.GetRecharge() || !fireStorm.GetRecharge())) {
+    if (cur_energy > 10 && (!searingFlames.GetRecharge() || !fireball.GetRecharge())) {
         uint32_t max_adjacent = 0;
         uint32_t max_nearby = 0;
         GW::AgentID best_adjacent_target = 0;
@@ -150,16 +149,6 @@ bool ElementalistSidekick::UseCombatSkill()
             }
             else if (target) {
                 if (UseSkillWithTimer(2, target->agent_id)) return true;
-            }
-        }
-
-        if (!fireStorm.GetRecharge() && max_adjacent > 0 && best_adjacent_target) {
-            GW::Agent* bestTarget = GW::Agents::GetAgentByID(best_adjacent_target);
-            GW::AgentLiving* bestLiving = bestTarget ? bestTarget->GetAsAgentLiving() : nullptr;
-            if (bestLiving && !bestLiving->GetIsMoving()) {
-                if (UseSkillWithTimer(4, best_adjacent_target)) {
-                    return true;
-                }
             }
         }
     }
