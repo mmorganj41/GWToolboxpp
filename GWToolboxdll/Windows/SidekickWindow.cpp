@@ -838,15 +838,16 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
         };
         case GenericValueID::effect_on_agent:
         case GenericValueID::effect_on_target: {
-            Log::Info("Effect %d", value);
-            if (party_ids.contains(caster_id) && value == 1938) {
-                GW::Agent* agent = GW::Agents::GetAgentByID(caster_id);
-                if (agent) {
-                    SkillDuration skillDuration = {TIMER_INIT(), 16000};
-                    Ward ward = {agent->pos, skillDuration};
-                    wardEffect = ward;
-                }
-            }
+            if (party_ids.contains(caster_id)) { 
+                if (value == 1938 || (value == 1939 && !finishes_attacks))
+                {
+                    GW::Agent* agent = GW::Agents::GetAgentByID(caster_id);
+                    if (agent) {
+                        SkillDuration skillDuration = {TIMER_INIT(), 16000};
+                        Ward ward = {agent->pos, skillDuration};
+                        wardEffect = ward;
+                    }
+                }             }
             EffectOnTarget(*target_id, value);
             break;
         }
