@@ -86,6 +86,14 @@ bool ElementalistSidekick::UseCombatSkill()
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
+    if (sidekickLiving->max_energy - cur_energy > 10 && burningTarget) {
+        GW::SkillbarSkill glowingGaze = skillbar->skills[2];
+        GW::Skill* glowingGazeInfo = GW::SkillbarMgr::GetSkillConstantData(glowingGaze.skill_id);
+        if (glowingGazeInfo && CanUseSkill(glowingGaze, glowingGazeInfo, cur_energy)) {
+            if (UseSkillWithTimer(3, target && burningEffectSet.contains(target->agent_id) ? target->agent_id : burningTarget->agent_id)) return true;
+        };
+    }
+
     GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
     GW::SkillbarSkill vanguardBannerOfWisdom = skillbar->skills[4];
     bool canUseHonor = !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id);
@@ -110,15 +118,6 @@ bool ElementalistSidekick::UseCombatSkill()
     }
     else {
         closeDistance = false;
-    }
-
-
-    if (sidekickLiving->max_energy - cur_energy > 10 && burningTarget) {
-        GW::SkillbarSkill glowingGaze = skillbar->skills[3];
-        GW::Skill* glowingGazeInfo = GW::SkillbarMgr::GetSkillConstantData(glowingGaze.skill_id);
-        if (glowingGazeInfo && CanUseSkill(glowingGaze, glowingGazeInfo, cur_energy)) {
-            if (UseSkillWithTimer(3, target && burningEffectSet.contains(target->agent_id) ? target->agent_id : burningTarget->agent_id)) return true;
-        };
     }
 
     if (!closeDistance) {
