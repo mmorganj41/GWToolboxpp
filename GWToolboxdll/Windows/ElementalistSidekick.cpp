@@ -86,7 +86,7 @@ bool ElementalistSidekick::UseCombatSkill()
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
-    if (sidekickLiving->max_energy - cur_energy > 10 && burningTarget) {
+    if (sidekickLiving->energy < .6 && burningTarget) {
         GW::SkillbarSkill glowingGaze = skillbar->skills[2];
         GW::Skill* glowingGazeInfo = GW::SkillbarMgr::GetSkillConstantData(glowingGaze.skill_id);
         if (glowingGazeInfo && CanUseSkill(glowingGaze, glowingGazeInfo, cur_energy)) {
@@ -96,21 +96,23 @@ bool ElementalistSidekick::UseCombatSkill()
 
     GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
     bool canUseHonor = !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id);
-    if (target && cur_energy > 10 && canUseHonor) {
-        if (GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
+    if (cur_energy > 10 && canUseHonor) {
+        GW::Agent* wardCasterAgent = wardCaster ? GW::Agents::GetAgentByID(wardCaster) : nullptr;
+        if ((wardCasterAgent && GW::GetDistance(wardCasterAgent->pos, sidekickLiving->pos) > GW::Constants::Range::Adjacent) || (wardEffect &&  GW::GetDistance(wardCasterAgent->pos, sidekickLiving->pos)  > GW::Constants::Range::Adjacent) ||
+            (!wardCasterAgent && !wardEffect && target && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4))
+            {
             if (UseSkillWithTimer(5)) {
-                    closeDistance = false;
+                    castingWard = false;
                     return true;
                 }
         }
-        closeDistance = true;
-        
+        castingWard = true;
     }
     else {
-        closeDistance = false;
+        castingWard = false;
     }
 
-    if (!closeDistance) {
+    if (!castingWard) {
         GW::SkillbarSkill searingFlames = skillbar->skills[1];
         if (cur_energy > 15 && !searingFlames.GetRecharge()) {
             uint32_t max_nearby = 0;

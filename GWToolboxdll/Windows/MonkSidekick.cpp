@@ -196,18 +196,21 @@ bool MonkSidekick::UseCombatSkill() {
 
     GW::SkillbarSkill vanguardBannerOfWisdom = skillbar->skills[5];
     bool canUseWisdom = !vanguardBannerOfWisdom.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfWisdom.skill_id);
-    if (target && cur_energy > 10 && canUseWisdom) {
-        if (GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
+    if (cur_energy > 10 && canUseWisdom) {
+        GW::Agent* wardCasterAgent = wardCaster ? GW::Agents::GetAgentByID(wardCaster) : nullptr;
+        if ((wardCasterAgent && GW::GetDistance(wardCasterAgent->pos, sidekickLiving->pos) > GW::Constants::Range::Adjacent) || (wardEffect && GW::GetDistance(wardCasterAgent->pos, sidekickLiving->pos) > GW::Constants::Range::Adjacent) ||
+            (!wardCasterAgent && !wardEffect && target && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
             if (UseSkillWithTimer(5)) {
-                closeDistance = false;
+                castingWard = false;
                 return true;
             }
         }
-        closeDistance = true;
+        castingWard = true;
     }
     else {
-        closeDistance = false;
+        castingWard = false;
     }
+
 
     if (hexedAlly) {
         GW::SkillbarSkill cureHex = skillbar->skills[4];

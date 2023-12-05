@@ -99,7 +99,7 @@ public:
     bool SetEnabled(bool b);
     bool GetEnabled();
     bool UseSkillWithTimer(uint32_t slot, uint32_t target = 0U, int32_t time = 500);
-    bool closeDistance = false;
+    bool castingWard = false;
 
     void ToggleEnable() { SetEnabled(!enabled); }
 
@@ -164,7 +164,13 @@ public:
 
     std::optional<Ward> wardEffect = std::nullopt;
 
+    uint32_t wardCaster = 0;
+
 private:
+    enum LeaderState { Normal, Split, Three };
+
+    LeaderState leaderState = Normal;
+    LeaderState lastLeaderState = Normal;
     bool enabled = false;
     bool no_combat = false;
     bool shouldInputScatterMove = false;
@@ -243,6 +249,11 @@ private:
         {GW::Constants::SkillID::Power_Return, false},
         {GW::Constants::SkillID::Power_Spike, false},
     };  
+
+    std::unordered_set<GW::Constants::SkillID> wardSkills = {
+            GW::Constants::SkillID::Time_Ward,
+            GW::Constants::SkillID::Ebon_Battle_Standard_of_Honor, GW::Constants::SkillID::Ebon_Battle_Standard_of_Wisdom
+        };  
 
     void HandleInterrupts(const uint32_t value_id, const uint32_t caster_id, const uint32_t value);
 
