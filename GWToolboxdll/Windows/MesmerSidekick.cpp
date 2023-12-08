@@ -450,8 +450,9 @@ void MesmerSidekick::SkillFinishCallback(const uint32_t caster_id) {
     active_skills.erase(caster_id);
 }
 
-void MesmerSidekick::GenericModifierCallback(uint32_t type, uint32_t caster_id, float value)
+void MesmerSidekick::GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id)
 {
+    UNREFERENCED_PARAMETER(cause_id);
     if (type != GW::Packet::StoC::GenericValueID::casttime)
         return;
 

@@ -124,7 +124,7 @@ public:
     virtual void SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt);
     virtual void SkillFinishCallback(const uint32_t caster_id);
     virtual void EffectOnTarget(const uint32_t target, const uint32_t value);
-    virtual void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value);
+    virtual void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id);
     virtual void AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet);
     
     void CheckForProximity(GW::AgentLiving* agentLiving);
@@ -163,8 +163,6 @@ public:
     };
 
     std::optional<Ward> wardEffect = std::nullopt;
-
-    uint32_t wardCaster = 0;
 
 private:
     enum LeaderState { Normal, Split, Three };

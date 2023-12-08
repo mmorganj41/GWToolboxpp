@@ -36,17 +36,27 @@ public:
     void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet) override;
-
+    void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id) override;
 
 private:
+    struct DamageHolder {
+        uint32_t timeStamp;
+        uint32_t damage;
+        uint32_t packets;
+    };
+
+    std::unordered_map<GW::AgentID, std::array<DamageHolder, 5>> damageMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
     std::unordered_map<GW::AgentID, SkillDuration> vigorousSpiritMap = {};
+    std::unordered_map<GW::AgentID, SkillDuration> seedOfLifeMap = {};
     std::set<uint32_t> monkEffectSet = {};
     GW::AgentLiving* hexedAlly = nullptr;
     GW::AgentLiving* lowestHealthNonParty = nullptr;
     GW::AgentLiving* lowestHealthIncludingPet = nullptr;
     GW::AgentLiving* vigorousSpiritAlly = nullptr;
     GW::AgentLiving* deadAlly = nullptr;
+
+    GW::AgentID seedOfLifeTarget = 0;
 
     uint32_t damagedAllies = 0;
 };

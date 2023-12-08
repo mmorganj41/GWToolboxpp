@@ -96,17 +96,18 @@ bool ElementalistSidekick::UseCombatSkill()
 
     GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
     bool canUseHonor = !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id);
-    if (cur_energy > 10 && canUseHonor) {
-        GW::Agent* wardCasterAgent = wardCaster ? GW::Agents::GetAgentByID(wardCaster) : nullptr;
-        if ((wardCasterAgent && GW::GetDistance(wardCasterAgent->pos, sidekickLiving->pos) > GW::Constants::Range::Adjacent) || (wardEffect &&  GW::GetDistance(wardCasterAgent->pos, sidekickLiving->pos)  > GW::Constants::Range::Adjacent) ||
-            (!wardCasterAgent && !wardEffect && target && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4))
+    if (target && cur_energy > 10 && canUseHonor) {
+        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Adjacent) ||
+            (target && !wardEffect && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4))
             {
             if (UseSkillWithTimer(5)) {
-                    castingWard = false;
-                    return true;
-                }
+                castingWard = false;
+                return true;
+            }
         }
-        castingWard = true;
+        else {
+            castingWard = true;
+        }
     }
     else {
         castingWard = false;
@@ -131,6 +132,10 @@ bool ElementalistSidekick::UseCombatSkill()
             }
 
             if (max_nearby > 0 && best_nearby_target) {
+                GW::SkillbarSkill intensity = skillbar->skills[4];
+                if (cur_energy > 20 && !intensity.GetRecharge()) {
+                    UseSkillWithTimer(4);
+                }
                 if (UseSkillWithTimer(1, best_nearby_target)) return true;
             }
             else if (target) {

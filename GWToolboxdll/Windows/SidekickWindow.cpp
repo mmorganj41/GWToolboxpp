@@ -67,12 +67,13 @@ void SidekickWindow::Initialize()
         const uint32_t type = packet->type;
         const uint32_t caster_id = packet->target_id;
         const float value = packet->value;
+        const uint32_t cause_id = packet->cause_id;
 
         if (type == GW::Packet::StoC::GenericValueID::casttime) {
             cast_times.insert_or_assign(caster_id, value);
         }
 
-        GenericModifierCallback(type, caster_id, value);
+        GenericModifierCallback(type, caster_id, value, cause_id);
     });
 
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericValue>(&GenericValueSelf_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::GenericValue* packet) -> void {
@@ -529,6 +530,7 @@ void SidekickWindow::Update(float delta)
                     return;
                     });
                 StopCombat();
+                wardEffect = std::nullopt;
                 interrupts.clear();
                 cast_times.clear();
                 Log::Info("Leaving combat...");
@@ -558,88 +560,47 @@ void SidekickWindow::Update(float delta)
         }
 
         switch (state) {
-        case Following: {
-            GW::PartyInfo* info = GW::PartyMgr::GetPartyInfo();
+            case Following: {
+                GW::PartyInfo* info = GW::PartyMgr::GetPartyInfo();
 
-            if (!(info && info->players.valid()))
-                return;
+                if (!(info && info->players.valid()))
+                    return;
 
-            uint32_t called_target = info->players[0].calledTargetId;
+                uint32_t called_target = info->players[0].calledTargetId;
 
-            if (called_target && SetUpCombatSkills(called_target)) {
-                return;
-            }
-
-            if (UseOutOfCombatSkill())
-                return;
-
-            const float distance = GW::GetDistance(sidekick->pos, party_leader->pos);
-            if (distance > GW::Constants::Range::Adjacent && TIMER_DIFF(timers.followTimer) > 149 + rand() % 100)
-            {
-                if (!sidekick->GetIsMoving() || distance > GW::Constants::Range::Earshot) {
-                    GW::Agents::GoPlayer(party_leader);
-                    reposition = true;
-                    CheckStuck();
-                    timers.followTimer = TIMER_INIT();
-                }
-            }
-            else if (distance <= GW::Constants::Range::Adjacent && reposition && !party_leader->GetIsMoving()) {
-                if (!isCasting(sidekick)) {
-                    reposition = false;
-                    GW::Agents::Move(CalculateInitialPosition(party_leader->pos, *group_center, sidekick_position, GW::Constants::Range::Adjacent / 2));
-                }
-            }
-            break;
-        }
-        case Fighting: {
-            GW::PartyInfo* info = GW::PartyMgr::GetPartyInfo();
-
-            if (!(info && info->players.valid()))
-                return;
-
-            if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) <= (GW::Constants::Range::Spellcast + GW::Constants::Range::Area / 2))) {
-                wardEffect = std::nullopt;
-            }
-
-            if (group_center) {
-                float distance = GW::GetDistance(sidekick->pos, *group_center);
-                GW::Agent* target = GW::Agents::GetTarget();
-                if ((!sidekick->GetIsMoving() && !isCasting(sidekick) && distance > GW::Constants::Range::Earshot) || distance > GW::Constants::Range::Spellcast * 3 / 2 && TIMER_DIFF(timers.followTimer) > 1000 + rand() % 100) {
-                    Log::Info("Out of earshot");
-                    float percentToMove = (distance - GW::Constants::Range::Earshot) / distance;
-                    GW::GamePos new_position = { sidekick->pos.x + (group_center->x - sidekick->pos.x) * percentToMove, sidekick->pos.y + (group_center->y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane };
-                    GW::Agents::Move(new_position);
-                    timers.followTimer = TIMER_INIT();
+                if (called_target && SetUpCombatSkills(called_target)) {
                     return;
                 }
-                else if (castingWard && !sidekick->GetIsMoving() && !isCasting(sidekick))
-                    if (wardCaster) {
-                        GW::Agent* caster = GW::Agents::GetAgentByID(wardCaster);
-                        GW::AgentLiving* casterLiving = caster ? caster->GetAsAgentLiving() : nullptr;
 
-                        if (casterLiving && casterLiving->GetIsAlive() && isCasting(casterLiving) && GW::GetDistance(casterLiving->pos, sidekick->pos) > GW::Constants::Range::Adjacent) {
-                            GW::Agents::Move(casterLiving->pos);
-                            return;
-                        }
-                        wardCaster = 0;
+                if (UseOutOfCombatSkill())
+                    return;
+
+                const float distance = GW::GetDistance(sidekick->pos, party_leader->pos);
+                if (distance > GW::Constants::Range::Adjacent && TIMER_DIFF(timers.followTimer) > 149 + rand() % 100)
+                {
+                    if (!sidekick->GetIsMoving() || distance > GW::Constants::Range::Earshot) {
+                        GW::Agents::GoPlayer(party_leader);
+                        reposition = true;
+                        CheckStuck();
+                        timers.followTimer = TIMER_INIT();
                     }
-                    else if (wardEffect && target && GW::GetDistance(wardEffect->position, target->pos) < GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
-                        if (GW::GetDistance(wardEffect->position, sidekick->pos) > GW::Constants::Range::Adjacent) {
-                                GW::Agents::Move(wardEffect->position);
-                                return;
-                            }
-                        }
-                        else if (target) {
-                            float distanceToTarget = GW::GetDistance(target->pos, sidekick->pos);
-                            if (distanceToTarget > GW::Constants::Range::Earshot) {
-                                Log::Info("Closing distance");
-                                float percentToMove = (distanceToTarget - GW::Constants::Range::Earshot) / distanceToTarget;
-                                GW::GamePos new_position = {sidekick->pos.x+(target->pos.x - sidekick->pos.x) * percentToMove, sidekick->pos.y+(target->pos.y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane};
-                                GW::Agents::Move(new_position);
-                                timers.followTimer = TIMER_INIT();
-                                return;
-                            }
-                        }
+                }
+                else if (distance <= GW::Constants::Range::Adjacent && reposition && !party_leader->GetIsMoving()) {
+                    if (!isCasting(sidekick)) {
+                        reposition = false;
+                        GW::Agents::Move(CalculateInitialPosition(party_leader->pos, *group_center, sidekick_position, GW::Constants::Range::Adjacent / 2));
+                    }
+                }
+                break;
+            }
+            case Fighting: {
+                GW::PartyInfo* info = GW::PartyMgr::GetPartyInfo();
+
+                if (!(info && info->players.valid()))
+                    return;
+
+                if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) <= (GW::Constants::Range::Spellcast + GW::Constants::Range::Area / 2))) {
+                    wardEffect = std::nullopt;
                 }
 
                 uint32_t called_target = info->players[0].calledTargetId;
@@ -683,6 +644,45 @@ void SidekickWindow::Update(float delta)
                     }
                 }
 
+                const GW::Agent* target = GW::Agents::GetTarget();
+
+                if (group_center) {
+                    float distance = GW::GetDistance(sidekick->pos, *group_center);
+                    if ((!sidekick->GetIsMoving() && !isCasting(sidekick) && distance > GW::Constants::Range::Earshot) || distance > GW::Constants::Range::Spellcast * 3 / 2 && TIMER_DIFF(timers.followTimer) > 1000 + rand() % 100) {
+                        Log::Info("Out of earshot");
+                        float percentToMove = (distance - GW::Constants::Range::Earshot) / distance;
+                        GW::GamePos new_position = {sidekick->pos.x + (group_center->x - sidekick->pos.x) * percentToMove, sidekick->pos.y + (group_center->y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane};
+                        GW::Agents::Move(new_position);
+                        timers.followTimer = TIMER_INIT();
+                        return;
+                    }
+                    else if (castingWard && !sidekick->GetIsMoving() && !isCasting(sidekick))
+                        if (wardEffect) {
+                            if (!target || (target && GW::GetDistance(wardEffect->position, target->pos) < GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
+                                if (GW::GetDistance(wardEffect->position, sidekick->pos) > GW::Constants::Range::Adjacent) {
+                                    GW::Agents::Move(wardEffect->position);
+                                    return;
+                                }
+                                else {
+                                    wardEffect = std::nullopt;
+                                    return;
+                                }
+                            }
+                        }
+                        else if (target) {
+                            wardEffect = std::nullopt;
+                            float distanceToTarget = GW::GetDistance(target->pos, sidekick->pos);
+                            if (distanceToTarget > GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
+                                Log::Info("Closing distance");
+                                float percentToMove = (distanceToTarget - GW::Constants::Range::Earshot) / distanceToTarget;
+                                GW::GamePos new_position = {sidekick->pos.x + (target->pos.x - sidekick->pos.x) * percentToMove, sidekick->pos.y + (target->pos.y - sidekick->pos.y) * percentToMove, sidekick->pos.zplane};
+                                GW::Agents::Move(new_position);
+                                timers.followTimer = TIMER_INIT();
+                                return;
+                            }
+                        }
+                }
+
                 if (!waitForInterrupt && UseCombatSkill()) {
                     return;
                 }
@@ -707,8 +707,6 @@ void SidekickWindow::Update(float delta)
                     GW::Agents::Move(new_position);
                     timers.followTimer = TIMER_INIT();
                 }
-
-                const GW::Agent* target = GW::Agents::GetTarget();
 
                 const GW::AgentLiving* targetLiving = target ? target->GetAsAgentLiving() : nullptr;
 
@@ -900,11 +898,16 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
             break;
         }
         case GenericValueID::skill_activated: {
-            if (party_ids.contains(caster_id) && wardSkills.contains(static_cast<GW::Constants::SkillID>(value))) {
+            if (caster_id != playerId && party_ids.contains(caster_id) && wardSkills.contains(static_cast<GW::Constants::SkillID>(value))) {
                 GW::Agent* agent = GW::Agents::GetAgentByID(caster_id);
                 GW::Agent* sidekick = GW::Agents::GetPlayer();
-                if (agent && sidekick && GW::GetDistance(agent->pos, sidekick->pos) < GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) 
-                    wardCaster = caster_id;
+                if (agent && sidekick && GW::GetDistance(agent->pos, sidekick->pos) < GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4) {
+                    float cast_time = cast_times[caster_id];
+                    cast_times.erase(caster_id);
+                    SkillDuration skillDuration = {TIMER_INIT(), cast_time || 1000 };
+                    Ward ward = {agent->pos, skillDuration};
+                    wardEffect = ward;
+                }                
             }
 
             [[fallthrough]];
@@ -932,11 +935,9 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
          {
             if (scatterCastMap.contains(caster_id)) 
                 scatterCastMap.erase(caster_id);
-            if (wardCaster && wardCaster == caster_id && wardSkills.contains(static_cast<GW::Constants::SkillID>(value))) {
-                wardCaster = 0;
-            }
-
-            if ((value_id == GenericValueID::attack_skill_stopped || value_id == GenericValueID::skill_stopped) && interrupts.contains(caster_id)) interrupts.erase(caster_id);
+            if (value_id == GenericValueID::attack_skill_stopped || value_id == GenericValueID::skill_stopped) {
+                if (interrupts.contains(caster_id)) interrupts.erase(caster_id);
+            }   
             SkillFinishCallback(caster_id);
             break;
         }
@@ -1100,10 +1101,11 @@ void SidekickWindow::SkillFinishCallback(const uint32_t caster_id) {
 }
 
 
-void SidekickWindow::GenericModifierCallback(uint32_t type, uint32_t caster_id, float value) {
+void SidekickWindow::GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id) {
     UNREFERENCED_PARAMETER(type);
     UNREFERENCED_PARAMETER(value);
     UNREFERENCED_PARAMETER(caster_id);
+    UNREFERENCED_PARAMETER(cause_id);
 }
 
 void SidekickWindow::ResetTargets()

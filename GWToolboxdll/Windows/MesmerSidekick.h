@@ -49,7 +49,7 @@ public:
 
     void SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id = std::nullopt) override;
     void SkillFinishCallback(const uint32_t caster_id) override;
-    void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value) override;
+    void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id) override;
 
 
 private:
