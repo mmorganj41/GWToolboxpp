@@ -46,6 +46,7 @@ void MonkSidekick::HardReset() {
     vigorousSpiritMap.clear();
     monkEffectSet.clear();
     hexedAlly = nullptr;
+    conditionedAlly = nullptr;
     cureHexMap.clear();
     lowestHealthIncludingPet = nullptr;
 }
@@ -54,6 +55,7 @@ void MonkSidekick::ResetTargetValues() {
     seedOfLifeTarget = 0;
     deadAlly = nullptr;
     hexedAlly = nullptr;
+    conditionedAlly = nullptr;
     vigorousSpiritAlly = nullptr;
     lowestHealthNonParty = nullptr;
     lowestHealthIncludingPet = nullptr;
@@ -85,6 +87,12 @@ void MonkSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_
         case GW::Constants::SkillID::Shatter_Hex:
         case GW::Constants::SkillID::Remove_Hex: {
             cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
+            break;
+        }
+        case GW::Constants::SkillID::Foul_Feast:
+        case GW::Constants::SkillID::Dismiss_Condition: {
+            cureConditionMap.insert_or_assign(casterLiving->agent_id, *target_id);
+            break;
         }
     }
 }
@@ -98,6 +106,7 @@ void MonkSidekick::SkillFinishCallback(const uint32_t caster_id) {
     if (casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
     
     cureHexMap.erase(casterLiving->agent_id);
+    cureConditionMap.erase(casterLiving->agent_id);
 }
 
 bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
@@ -126,6 +135,13 @@ bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* p
             if ((!lowestHealthIncludingPet || lowestHealthIncludingPet->hp > agentLiving->hp)) lowestHealthIncludingPet = agentLiving;
             if (party_ids.contains(agentLiving->agent_id) && agentLiving->hp < .8) {
                 damagedAllies += 1;
+            }
+            if (agentLiving->GetIsConditioned() && (!conditionedAlly || (conditionedAlly && conditionedAlly->hp > agentLiving->hp))) {
+                bool already_casting = false;
+                for (auto& it : cureConditionMap) {
+                    if (it.second == agentLiving->agent_id) already_casting = true;
+                }
+                if (!already_casting) conditionedAlly = agentLiving;
             }
         }
         else if (agentLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable) {
@@ -324,27 +340,33 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
 
+    GW::SkillbarSkill dismissCondition = skillbar->skills[2];
+    if (cur_energy > 5 && !dismissCondition.GetRecharge()) {
+        if (conditionedAlly) {
+            if (UseSkillWithTimer(2, conditionedAlly->agent_id)) {
+                return true;
+            }
+        }
+    }
+
     GW::SkillbarSkill burstOfHealing = skillbar->skills[6];
     GW::SkillbarSkill vigorousSpirit = skillbar->skills[1];
     GW::Skill* vigorousSpiritInfo = GW::SkillbarMgr::GetSkillConstantData(vigorousSpirit.skill_id);
+
+    if (cur_energy < 5) return false;
     
-    if (lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .6 || damagedAllies > 3)) {
+    if (!burstOfHealing.GetRecharge() && lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .6 || damagedAllies > 3)) {
         if (UseSkillWithTimer(6, lowestHealthIncludingPet->agent_id)) {
+            return true;
+        }
+    }
+    else if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .6 && lowestHealthIncludingPet->GetIsEnchanted()) {
+        if (UseSkillWithTimer(2, lowestHealthIncludingPet->agent_id)) {
             return true;
         }
     }
    else if (vigorousSpiritAlly && vigorousSpiritAlly->hp < .95 && vigorousSpiritInfo && CanUseSkill(vigorousSpirit, vigorousSpiritInfo, cur_energy)) {
         if (UseSkillWithTimer(1, vigorousSpiritAlly->agent_id)) {
-            return true;
-        }
-    }
-
-    if (!target) return false;
-
-    GW::SkillbarSkill baneSignet = skillbar->skills[2];
-    GW::Skill* baneSignetInfo = GW::SkillbarMgr::GetSkillConstantData(baneSignet.skill_id);
-    if (target->hp > .4 && target->GetIsAttacking() && baneSignetInfo && CanUseSkill(baneSignet, baneSignetInfo, cur_energy)) {
-        if (UseSkillWithTimer(2, target->agent_id)) {
             return true;
         }
     }
@@ -418,7 +440,6 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
     GW::AgentLiving* targetLiving = targetAgent ? targetAgent->GetAsAgentLiving() : nullptr;
 
     if (!targetLiving) return;
-    Log::Info("Value %d", value);
 
     if ((party_ids.contains(target) || (targetLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !targetLiving->GetIsSpawned())) && value == 465) {
         SkillDuration skillDuration = {TIMER_INIT(), 30000};

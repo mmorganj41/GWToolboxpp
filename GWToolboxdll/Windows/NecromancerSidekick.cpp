@@ -78,6 +78,13 @@ void NecromancerSidekick::SkillCallback(const uint32_t value_id, const uint32_t 
             case GW::Constants::SkillID::Drain_Enchantment:
             case GW::Constants::SkillID::Jaundiced_Gaze: {
                 removeEnchantmentMap.insert_or_assign(casterLiving->agent_id, *target_id);    
+                break;
+            }
+            case GW::Constants::SkillID::Foul_Feast:
+            case GW::Constants::SkillID::Dismiss_Condition: {
+                cureConditionMap.insert_or_assign(casterLiving->agent_id, *target_id);
+                break;
+
             }
         }
     }
@@ -94,6 +101,7 @@ void NecromancerSidekick::SkillFinishCallback(const uint32_t caster_id)
 
     cureHexMap.erase(casterLiving->agent_id);
     removeEnchantmentMap.erase(casterLiving->agent_id);
+    cureConditionMap.erase(casterLiving->agent_id);
 }
 
 
@@ -127,37 +135,43 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
             if (!already_casting) hexedAlly = agentLiving;
         }
         if (agentLiving->GetIsConditioned() && agentLiving->agent_id != playerLiving->agent_id) {
-            uint32_t currentScore = 0;
-            if (conditionEffectMap.contains(agentLiving->agent_id)) {
-                const uint32_t conditionValue = conditionEffectMap[agentLiving->agent_id];
-                if (conditionValue & blind_bin) {
-                    currentScore += 5;
+            bool already_casting = false;
+            for (auto& it : cureConditionMap) {
+                if (it.second == agentLiving->agent_id) already_casting = true;
+            }
+            if (!already_casting) {
+                uint32_t currentScore = 0;
+                if (conditionEffectMap.contains(agentLiving->agent_id)) {
+                    const uint32_t conditionValue = conditionEffectMap[agentLiving->agent_id];
+                    if (conditionValue & blind_bin) {
+                        currentScore += 5;
+                    }
+                    if (conditionValue & dazed_bin) {
+                        currentScore += 5;
+                    }
+                    if (conditionValue & disease_bin) {
+                        currentScore += 4;
+                    }
+                    if (conditionValue & weakness_bin) {
+                        currentScore += 3;
+                    }
+                    if (conditionValue & poison_bin) {
+                        currentScore += 2;
+                    }
                 }
-                if (conditionValue & dazed_bin) {
-                    currentScore += 5;
-                }
-                if (conditionValue & disease_bin) {
-                    currentScore += 4;
-                }
-                if (conditionValue & weakness_bin) {
+                if (agentLiving->GetIsCrippled()) {
                     currentScore += 3;
                 }
-                if (conditionValue & poison_bin) {
-                    currentScore += 2;
+                if (agentLiving->GetIsDeepWounded()) {
+                    currentScore += 3;
                 }
-            }
-            if (agentLiving->GetIsCrippled()) {
-                currentScore += 3;
-            }
-            if (agentLiving->GetIsDeepWounded()) {
-                currentScore += 3;
-            }
-            if (agentLiving->GetIsBleeding()) {
-                currentScore += 1;
-            }
-            if (currentScore > conditionScore) {
-                conditionScore = currentScore;
-                conditionedAlly = agentLiving;
+                if (agentLiving->GetIsBleeding()) {
+                    currentScore += 1;
+                }
+                if (currentScore > conditionScore) {
+                    conditionScore = currentScore;
+                    conditionedAlly = agentLiving;
+                }
             }
         }
     }
