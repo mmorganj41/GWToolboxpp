@@ -35,39 +35,36 @@
 #include <Logger.h>
 
 namespace {
-    clock_t hexTimer = 0;
 } // namespace
+
 
 void MonkSidekick::HardReset() {
     damageMap.clear();
-    deadAlly = nullptr;
-    vigorousSpiritAlly = nullptr;
     lowestHealthNonParty = nullptr;
-    vigorousSpiritMap.clear();
     monkEffectSet.clear();
-    hexedAlly = nullptr;
     conditionedAlly = nullptr;
-    cureHexMap.clear();
     lowestHealthIncludingPet = nullptr;
+    airOfEnchantmentMap.clear();
+    spiritBondMap.clear();
+    airOfEnchantmentMap.clear();
+    seedOfLifeMap.clear();
+    shieldOfAbsorptionTarget = 0;
 }
 
 void MonkSidekick::ResetTargetValues() {
     seedOfLifeTarget = 0;
-    deadAlly = nullptr;
-    hexedAlly = nullptr;
     conditionedAlly = nullptr;
-    vigorousSpiritAlly = nullptr;
     lowestHealthNonParty = nullptr;
     lowestHealthIncludingPet = nullptr;
     damagedAllies = 0;
+    necromancerAgent = nullptr;
+    shieldOfAbsorptionTarget = 0;
 }
 
 void MonkSidekick::StartCombat() {
-    hexTimer = 0;
 }
 
 void MonkSidekick::StopCombat() {
-    cureHexMap.clear();
 }
 
 void MonkSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id ) 
@@ -84,11 +81,6 @@ void MonkSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_
     GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
 
     switch (skillId) {
-        case GW::Constants::SkillID::Shatter_Hex:
-        case GW::Constants::SkillID::Remove_Hex: {
-            cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
-            break;
-        }
         case GW::Constants::SkillID::Foul_Feast:
         case GW::Constants::SkillID::Dismiss_Condition: {
             cureConditionMap.insert_or_assign(casterLiving->agent_id, *target_id);
@@ -105,33 +97,14 @@ void MonkSidekick::SkillFinishCallback(const uint32_t caster_id) {
 
     if (casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
     
-    cureHexMap.erase(casterLiving->agent_id);
     cureConditionMap.erase(casterLiving->agent_id);
 }
 
 bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
-    if (!agentLiving->GetIsAlive()) {
-        if (!deadAlly && party_ids.contains(agentLiving->agent_id)) {
-            deadAlly = agentLiving;
-        }
-    } 
-    else {
+    if (agentLiving->GetIsAlive()) {
         if ((party_ids.contains(agentLiving->agent_id) || (agentLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !agentLiving->GetIsSpawned()))) {
-            if (agentLiving->GetIsHexed()) {
-                if (hexTimer == 0) hexTimer = TIMER_INIT();
-                bool already_casting = false;
-                if (TIMER_DIFF(hexTimer) > 80 + 2 * static_cast<int32_t>(ping)) {
-                    for (auto& it : cureHexMap) {
-                        if (it.second == agentLiving->agent_id) already_casting = true;
-                    }
-                }
-                if (!already_casting && !hexedAlly) hexedAlly = agentLiving;
-            }
-            if (!vigorousSpiritMap.contains(agentLiving->agent_id)) {
-                if ((!vigorousSpiritAlly || vigorousSpiritAlly->hp > agentLiving->hp)) vigorousSpiritAlly = agentLiving;
-            }
             if ((!lowestHealthIncludingPet || lowestHealthIncludingPet->hp > agentLiving->hp)) lowestHealthIncludingPet = agentLiving;
             if (party_ids.contains(agentLiving->agent_id) && agentLiving->hp < .8) {
                 damagedAllies += 1;
@@ -155,32 +128,6 @@ void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
 {
     UNREFERENCED_PARAMETER(sidekick);
     if (state == Following || state == Picking_up) return;
-
-    if (!vigorousSpiritMap.empty()) {
-        for (auto& it : vigorousSpiritMap) {
-            GW::Agent* agent = GW::Agents::GetAgentByID(it.first);
-            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
-
-            if (!(agentLiving && agentLiving->GetIsAlive())) {
-                Log::Info("ally dead");
-                vigorousSpiritMap.erase(it.first);
-                continue;
-            }
-
-            clock_t elapsed_time = TIMER_DIFF(it.second.startTime);
-
-            if (elapsed_time - it.second.duration < 250) {
-                vigorousSpiritMap.erase(it.first);
-                Log::Info("Vigorous ran out");
-                continue;
-            }
-            else if (elapsed_time > 500 && !(agentLiving->GetIsEnchanted() && monkEffectSet.contains(it.first))) {
-                vigorousSpiritMap.erase(it.first);
-                Log::Info("Vigorous removed");
-                continue;
-            }
-       }
-    }
 
     if (!seedOfLifeMap.empty()) {
        for (auto& it : seedOfLifeMap) {
@@ -206,33 +153,124 @@ void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
        }
     }
 
+    if (!shieldOfAbsorptionMap.empty()) {
+       for (auto& it : shieldOfAbsorptionMap) {
+            GW::Agent* agent = GW::Agents::GetAgentByID(it.first);
+            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+            if (!(agentLiving && agentLiving->GetIsAlive())) {
+                Log::Info("ally dead");
+                shieldOfAbsorptionMap.erase(it.first);
+                continue;
+            }
+
+            clock_t elapsed_time = TIMER_DIFF(it.second.startTime);
+
+            if (elapsed_time - it.second.duration < 250) {
+                shieldOfAbsorptionMap.erase(it.first);
+                continue;
+            }
+            else if (elapsed_time > 500 && !(agentLiving->GetIsEnchanted() && monkEffectSet.contains(it.first))) {
+                shieldOfAbsorptionMap.erase(it.first);
+                continue;
+            }
+       }
+    }
+
+    if (!spiritBondMap.empty()) {
+       for (auto& it : spiritBondMap) {
+            GW::Agent* agent = GW::Agents::GetAgentByID(it.first);
+            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+            if (!(agentLiving && agentLiving->GetIsAlive())) {
+                Log::Info("ally dead");
+                spiritBondMap.erase(it.first);
+                continue;
+            }
+
+            clock_t elapsed_time = TIMER_DIFF(it.second.startTime);
+
+            if (elapsed_time - it.second.duration < 250) {
+                spiritBondMap.erase(it.first);
+                continue;
+            }
+            else if (elapsed_time > 500 && !(agentLiving->GetIsEnchanted() && monkEffectSet.contains(it.first))) {
+                spiritBondMap.erase(it.first);
+                continue;
+            }
+       }
+    }
+
+    if (!airOfEnchantmentMap.empty()) {
+       for (auto& it : airOfEnchantmentMap) {
+            GW::Agent* agent = GW::Agents::GetAgentByID(it.first);
+            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+
+            if (!(agentLiving && agentLiving->GetIsAlive())) {
+                Log::Info("ally dead");
+                airOfEnchantmentMap.erase(it.first);
+                continue;
+            }
+
+            clock_t elapsed_time = TIMER_DIFF(it.second.startTime);
+
+            if (elapsed_time - it.second.duration < 250) {
+                airOfEnchantmentMap.erase(it.first);
+                continue;
+            }
+            else if (elapsed_time > 500 && !(agentLiving->GetIsEnchanted() && monkEffectSet.contains(it.first))) {
+                airOfEnchantmentMap.erase(it.first);
+                continue;
+            }
+       }
+    }
+
+    for (auto& it : party_ids) {
+       if (necromancerAgent) break;
+       GW::Agent* agent = GW::Agents::GetAgentByID(it);
+       GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+       if (!agentLiving) continue;
+       if (agentLiving->primary == 4 && agentLiving->GetIsAlive()) necromancerAgent = agentLiving;
+    }
+
     if (!damageMap.empty()) {
-       clock_t new_time = TIMER_INIT();
+        clock_t new_time = TIMER_INIT();
 
-       uint32_t timeStamp = new_time / 1000;
+        uint32_t timeStamp = new_time / 1000;
 
-       size_t index = (timeStamp) % 5;
+        size_t index = (timeStamp) % 5;
 
-       uint32_t max_short = 0;
-       GW::AgentID short_agent = 0;
-       uint32_t max_medium = 0;
-       GW::AgentID medium_agent = 0;
-       uint32_t max_long = 0;
-       GW::AgentID long_agent = 0;
+        uint32_t max_short = 0;
+        GW::AgentID short_agent = 0;
+        uint32_t max_medium = 0;
+        GW::AgentID medium_agent = 0;
+        uint32_t max_long = 0;
+        GW::AgentID long_agent = 0;
+        GW::AgentID shield_agent = 0;
+        uint32_t max_shield = 0;
 
-       for (auto& it : damageMap) {
-           if (it.second[index].timeStamp != timeStamp) {
-                it.second[index] = {timeStamp, 0, 0};
-           }
+        for (auto& it : damageMap) {
+            if (it.second[index].timeStamp != timeStamp) {
+                it.second[index] = { timeStamp, 0, 0 };
+            }
 
-           if (sidekick->agent_id == it.first) continue;
 
-           uint32_t short_packets = 0;
-           uint32_t medium_packets = 0;
-           uint32_t long_packets = 0;
+            uint32_t short_packets = 0;
+            uint32_t medium_packets = 0;
+            uint32_t long_packets = 0;
+            uint32_t shield_packets = 0;
 
-           for (size_t i = 0; i < 5; i++) {
+            bool isPlayer = sidekick->agent_id == it.first;
+            bool hasShield = shieldOfAbsorptionMap.contains(it.first);
+
+            for (size_t i = 0; i < 5; i++) {
                 const uint32_t packets = it.second[(index + i) % 5].packets;
+                
+                if (i < 4 && !hasShield) {
+                    shield_packets += packets;
+                }
+
+                if (isPlayer) continue;
                 if (i == 0) {
                     short_packets += packets;
                 }
@@ -240,36 +278,44 @@ void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
                     medium_packets += packets;
                 }
                 long_packets += packets;
-           }
+            }
 
-           if (short_packets > max_short) {
+            if (short_packets > max_short) {
                 max_short = short_packets;
                 short_agent = it.first;
-           }
-           if (medium_packets > max_medium) {
+            }
+            if (medium_packets > max_medium) {
                 max_medium = medium_packets;
                 medium_agent = it.first;
-           }
-           if (long_packets > max_long) {
+            }
+            if (long_packets > max_long) {
                 max_long = long_packets;
                 long_agent = it.first;
-           }
-       }
+            }
+            if (shield_packets > max_shield) {
+                max_shield = shield_packets;
+                shield_agent = it.first;
+            }
+        }
 
-       if (max_short > 2) {
-           seedOfLifeTarget = short_agent; 
-       }
-       else if (max_medium > 5) {
-           seedOfLifeTarget = medium_agent;
-       }
-       else if (max_long > 16) {
-           seedOfLifeTarget = long_agent;
-       }
+        if (max_short > 1) {
+            seedOfLifeTarget = short_agent;
+        }
+        else if (max_medium > 4) {
+            seedOfLifeTarget = medium_agent;
+        }
+        else if (max_long > 11) {
+            seedOfLifeTarget = long_agent;
+        }
+
+        if (max_shield > 3) {
+            shieldOfAbsorptionTarget = shield_agent;
+        }
     }
 }
 
 bool MonkSidekick::UseCombatSkill() {
-      GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
     if (!skillbar) {
         return false;
     }
@@ -283,6 +329,27 @@ bool MonkSidekick::UseCombatSkill() {
 
     if (isCasting(sidekickLiving)) {
         return false;
+    }
+
+    GW::SkillbarSkill blessedAura = skillbar->skills[0];
+    if (cur_energy > 10 && !blessedAura.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
+        if (UseSkillWithTimer(0)) {
+            return true;
+        }
+    }
+
+    GW::SkillbarSkill airOfEnchantment = skillbar->skills[6];
+    if (cur_energy > 5 && !airOfEnchantment.GetRecharge()) {
+        if (necromancerAgent && (!airOfEnchantmentMap.contains(necromancerAgent->agent_id) || airOfEnchantmentMap[necromancerAgent->agent_id].duration - TIMER_DIFF(airOfEnchantmentMap[necromancerAgent->agent_id].startTime) < 2000)) {
+            if (UseSkillWithTimer(6, necromancerAgent->agent_id)) {
+                return true;
+            }
+        }
+        else if (lowest_health_other_ally && !airOfEnchantmentMap.contains(lowest_health_other_ally->agent_id) && (!necromancerAgent || airOfEnchantmentMap[necromancerAgent->agent_id].duration - TIMER_DIFF(airOfEnchantmentMap[necromancerAgent->agent_id].startTime) > 8000)) {
+            if (UseSkillWithTimer(6, lowest_health_other_ally->agent_id)) {
+                return true;
+            }
+        }
     }
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
@@ -307,34 +374,12 @@ bool MonkSidekick::UseCombatSkill() {
 
     if (castingWard) return false;
 
-    if (lowest_health_ally && lowest_health_ally->hp < .6 && seedOfLifeTarget && !seedOfLifeMap.contains(seedOfLifeTarget)) {
+    if (lowest_health_ally && lowest_health_ally->hp < .7 && seedOfLifeTarget && !seedOfLifeMap.contains(seedOfLifeTarget)) {
         GW::SkillbarSkill seedOfLife = skillbar->skills[0];
         if (cur_energy > 5 && !seedOfLife.GetRecharge()) {
             GW::Agent* seedOfLifeTargetAgent = GW::Agents::GetAgentByID(seedOfLifeTarget);
             GW::AgentLiving* seedOfLifeLiving = seedOfLifeTargetAgent ? seedOfLifeTargetAgent->GetAsAgentLiving() : nullptr;
-            if (seedOfLifeLiving && UseSkillWithTimer(0, seedOfLifeTarget)) {
-                return true;
-            }
-        }
-    }
-
-    if (sidekickLiving->hp < .6) {
-        GW::SkillbarSkill healingTouch = skillbar->skills[3];
-        GW::Skill* healingTouchInfo = GW::SkillbarMgr::GetSkillConstantData(healingTouch.skill_id);
-        if (CanUseSkill(healingTouch, healingTouchInfo, cur_energy)) {
-            if (UseSkillWithTimer(3, sidekickLiving->agent_id)) {
-                return true;
-            }
-        }
-    }
-
-
-    if (hexedAlly) {
-        GW::SkillbarSkill cureHex = skillbar->skills[4];
-        GW::Skill* cureHexInfo = GW::SkillbarMgr::GetSkillConstantData(cureHex.skill_id);
-        if (CanUseSkill(cureHex, cureHexInfo, cur_energy)) {
-            if (UseSkillWithTimer(4, hexedAlly->agent_id)) {
-                hexTimer = 0;
+            if (seedOfLifeLiving && seedOfLifeLiving->GetIsAlive() && UseSkillWithTimer(0, seedOfLifeTarget)) {
                 return true;
             }
         }
@@ -349,35 +394,39 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
 
-    GW::SkillbarSkill burstOfHealing = skillbar->skills[6];
-    GW::SkillbarSkill vigorousSpirit = skillbar->skills[1];
-    GW::Skill* vigorousSpiritInfo = GW::SkillbarMgr::GetSkillConstantData(vigorousSpirit.skill_id);
+    GW::SkillbarSkill spiritBond = skillbar->skills[3];
+    if (cur_energy > 10 && !spiritBond.GetRecharge()) {
+        if (lowest_health_ally && lowest_health_ally->hp < .6 && !spiritBondMap.contains(lowest_health_ally->agent_id)) {
+            if (UseSkillWithTimer(3, lowest_health_ally->agent_id)) {
+                return true;
+            }
+        }
+    }
 
     if (cur_energy < 5) return false;
     
-    if (!burstOfHealing.GetRecharge() && lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .6 || damagedAllies > 3)) {
-        if (UseSkillWithTimer(6, lowestHealthIncludingPet->agent_id)) {
-            return true;
-        }
-    }
-    else if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .6 && lowestHealthIncludingPet->GetIsEnchanted()) {
+    if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .6 && lowestHealthIncludingPet->GetIsEnchanted()) {
         if (UseSkillWithTimer(2, lowestHealthIncludingPet->agent_id)) {
             return true;
         }
     }
-   else if (vigorousSpiritAlly && vigorousSpiritAlly->hp < .95 && vigorousSpiritInfo && CanUseSkill(vigorousSpirit, vigorousSpiritInfo, cur_energy)) {
-        if (UseSkillWithTimer(1, vigorousSpiritAlly->agent_id)) {
+
+    GW::SkillbarSkill shieldOfAbsorption = skillbar->skills[4];
+    if (!shieldOfAbsorption.GetRecharge() && shieldOfAbsorptionTarget) {
+        GW::Agent* shieldAgent = GW::Agents::GetAgentByID(shieldOfAbsorptionTarget);
+        GW::AgentLiving* shieldAgentLiving = shieldAgent ? shieldAgent->GetAsAgentLiving() : nullptr;
+        
+        if (shieldAgentLiving && shieldAgentLiving->GetIsAlive() && UseSkillWithTimer(4, shieldOfAbsorptionTarget)) {
             return true;
         }
+
+
     }
 
-    if (!(lowest_health_ally && lowest_health_ally->hp < .6) && deadAlly) {
-        GW::SkillbarSkill resurrect = skillbar->skills[7];
-        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(resurrect.skill_id);
-        if (skillInfo && CanUseSkill(resurrect, skillInfo, cur_energy)) {
-            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
-                return true;
-            }
+    GW::SkillbarSkill aegis = skillbar->skills[7]; 
+    if (cur_energy > 10 && !aegis.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(aegis.skill_id)) {
+        if (UseSkillWithTimer(7)) {
+            return true;
         }
     }
 
@@ -403,31 +452,10 @@ bool MonkSidekick::UseOutOfCombatSkill()
         return false;
     }
 
-    if (sidekickLiving->hp < .7) {
-        GW::SkillbarSkill healingTouch = skillbar->skills[3];
-        GW::Skill* healingTouchInfo = GW::SkillbarMgr::GetSkillConstantData(healingTouch.skill_id);
-        if (CanUseSkill(healingTouch, healingTouchInfo, cur_energy)) {
-            if (UseSkillWithTimer(3, sidekickLiving->agent_id)) {
-                return true;
-            }
-        }
-   }
-
-    GW::SkillbarSkill burstOfHealing = skillbar->skills[6];
-
-   if (lowestHealthIncludingPet && (lowestHealthIncludingPet->hp < .6 || damagedAllies > 3)) {
-        if (UseSkillWithTimer(6, lowestHealthIncludingPet->agent_id)) {
+    GW::SkillbarSkill blessedAura = skillbar->skills[0];
+    if (cur_energy > 10 && !blessedAura.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
+        if (UseSkillWithTimer(0)) {
             return true;
-        }
-   }
-
-    if (!(lowest_health_ally && lowest_health_ally->hp < .6) && deadAlly) {
-        GW::SkillbarSkill resurrect = skillbar->skills[7];
-        GW::Skill* skillInfo = GW::SkillbarMgr::GetSkillConstantData(resurrect.skill_id);
-        if (skillInfo && CanUseSkill(resurrect, skillInfo, cur_energy)) {
-            if (UseSkillWithTimer(7, deadAlly->agent_id)) {
-                return true;
-            }
         }
     }
 
@@ -440,16 +468,34 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
     GW::AgentLiving* targetLiving = targetAgent ? targetAgent->GetAsAgentLiving() : nullptr;
 
     if (!targetLiving) return;
+    Log::Info("value added %d", value);
 
-    if ((party_ids.contains(target) || (targetLiving->allegiance == GW::Constants::Allegiance::Spirit_Pet && !targetLiving->GetIsSpawned())) && value == 465) {
-        SkillDuration skillDuration = {TIMER_INIT(), 30000};
-        Log::Info("vigorous applied");
-        vigorousSpiritMap.insert_or_assign(target, skillDuration);
-    }
-    else if (party_ids.contains(target) && value == 489) {
-        SkillDuration skillDuration = {TIMER_INIT(), 5000};
+    if (party_ids.contains(target) && value == 489) {
+        SkillDuration skillDuration = {TIMER_INIT(), 8000};
         Log::Info("seed of life applied");
         seedOfLifeMap.insert_or_assign(target, skillDuration);
+    }
+    // 1254 spirit bond
+    // 1650 shield of absorption
+    // 1255 air of enchantment
+    else if (targetLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable) {
+        switch (value) {
+            case 1254: {
+                SkillDuration skillDuration = {TIMER_INIT(), 5000};
+                spiritBondMap.insert_or_assign(target, skillDuration);
+                break;
+            }
+            case 1650: {
+                SkillDuration skillDuration = {TIMER_INIT(), 11000};
+                shieldOfAbsorptionMap.insert_or_assign(target, skillDuration);
+                break;
+            }
+            case 1255: {
+                SkillDuration skillDuration = {TIMER_INIT(), 16000};
+                airOfEnchantmentMap.insert_or_assign(target, skillDuration);
+                break;
+            }
+        }
     }
 }
 
@@ -477,12 +523,22 @@ void MonkSidekick::RemoveEffectCallback(const uint32_t agent_id, const uint32_t 
     monkEffectSet.erase(agent_id);
 }
 
-void MonkSidekick::AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet) {
-    if (packet->agent_id == GW::Agents::GetPlayerId() && packet->skill_id == static_cast<uint32_t>(GW::Constants::SkillID::Vigorous_Spirit)) {
-        SkillDuration skillDuration = {TIMER_INIT(), 30000};
-        Log::Info("vigorous applied to self");
-        vigorousSpiritMap.insert_or_assign(packet->agent_id, skillDuration);
-    }
+void MonkSidekick::AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet)
+{
+    if (packet->agent_id == GW::Agents::GetPlayerId()) {
+        switch (static_cast<GW::Constants::SkillID>(packet->skill_id)) {
+            case GW::Constants::SkillID::Spirit_Bond: {
+                SkillDuration skillDuration = {TIMER_INIT(), 5000};
+                spiritBondMap.insert_or_assign(packet->agent_id, skillDuration);
+                break;
+            }
+            case GW::Constants::SkillID::Shield_of_Absorption: {
+                SkillDuration skillDuration = {TIMER_INIT(), 11000};
+                shieldOfAbsorptionMap.insert_or_assign(packet->agent_id, skillDuration);
+                break;
+            }
+        }
+    } 
 }
 
 void MonkSidekick::GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id) {

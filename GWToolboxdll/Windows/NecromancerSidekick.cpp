@@ -33,6 +33,8 @@
 #include <Windows/NecromancerSidekick.h>
 
 #include <Logger.h>
+// blood is power 224
+// blood bond 889
 
 namespace {
     clock_t hexTimer = 0;
@@ -43,49 +45,50 @@ namespace {
     const uint32_t poison_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::poison)));
 } // namespace
 
+void NecromancerSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
+{
+    GW::Agent* targetAgent = GW::Agents::GetAgentByID(target);
+    GW::AgentLiving* targetLiving = targetAgent ? targetAgent->GetAsAgentLiving() : nullptr;
 
+    if (!targetLiving) return;
 
+    Log::Info("value id %d", value);
 
+    if (targetLiving->allegiance == GW::Constants::Allegiance::Enemy && value == 889) {
+        bloodBondCenter = targetLiving->pos;
+        checking_agents = GW::Constants::SkillID::Blood_Bond;
+    }
+}
 
 void NecromancerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id) {
     UNREFERENCED_PARAMETER(value_id);
     if (!target_id) return;
 
-    if (caster_id == GW::Agents::GetPlayerId() && static_cast<GW::Constants::SkillID>(value) == GW::Constants::SkillID::Blood_Bond) {
-        GW::Agent* target = GW::Agents::GetAgentByID(*target_id);
-        GW::AgentLiving* targetLiving = target ? target->GetAsAgentLiving() : nullptr;
-        if (targetLiving) {
-            bloodBondCenter = targetLiving->pos;
-            checking_agents = GW::Constants::SkillID::Blood_Bond;
+    GW::Agent* caster = GW::Agents::GetAgentByID(caster_id);
+    GW::AgentLiving* casterLiving = caster ? caster->GetAsAgentLiving() : nullptr;
+
+    if (!casterLiving) return;
+
+    if (caster_id == GW::Agents::GetPlayerId() || casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
+
+    GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
+
+    switch (skillId) {
+        case GW::Constants::SkillID::Shatter_Hex:
+        case GW::Constants::SkillID::Remove_Hex: {
+            cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
+            break;
         }
-    }
-    else {
-        GW::Agent* caster = GW::Agents::GetAgentByID(caster_id);
-        GW::AgentLiving* casterLiving = caster ? caster->GetAsAgentLiving() : nullptr;
+        case GW::Constants::SkillID::Drain_Enchantment:
+        case GW::Constants::SkillID::Jaundiced_Gaze: {
+            removeEnchantmentMap.insert_or_assign(casterLiving->agent_id, *target_id);    
+            break;
+        }
+        case GW::Constants::SkillID::Foul_Feast:
+        case GW::Constants::SkillID::Dismiss_Condition: {
+            cureConditionMap.insert_or_assign(casterLiving->agent_id, *target_id);
+            break;
 
-        if (!casterLiving) return;
-
-        if (caster_id == GW::Agents::GetPlayerId() || casterLiving->allegiance != GW::Constants::Allegiance::Ally_NonAttackable) return;
-
-        GW::Constants::SkillID skillId = static_cast<GW::Constants::SkillID>(value);
-
-        switch (skillId) {
-            case GW::Constants::SkillID::Shatter_Hex:
-            case GW::Constants::SkillID::Remove_Hex: {
-                cureHexMap.insert_or_assign(casterLiving->agent_id, *target_id);
-                break;
-            }
-            case GW::Constants::SkillID::Drain_Enchantment:
-            case GW::Constants::SkillID::Jaundiced_Gaze: {
-                removeEnchantmentMap.insert_or_assign(casterLiving->agent_id, *target_id);    
-                break;
-            }
-            case GW::Constants::SkillID::Foul_Feast:
-            case GW::Constants::SkillID::Dismiss_Condition: {
-                cureConditionMap.insert_or_assign(casterLiving->agent_id, *target_id);
-                break;
-
-            }
         }
     }
 }
@@ -174,6 +177,9 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
                 }
             }
         }
+        if (!lowEnergyAlly && bloodIsPowerSet.contains(agentLiving->agent_id)) {
+            lowEnergyAlly = agentLiving;
+        }
     }
 
     return false;
@@ -255,16 +261,6 @@ bool NecromancerSidekick::UseCombatSkill() {
         return false;
     }
 
-    GW::SkillbarSkill cultistsFervor = skillbar->skills[0];
-    GW::Effect* cultistsFervorEffect = GW::Effects::GetPlayerEffectBySkillId(cultistsFervor.skill_id);
-    if (!cultistsFervorEffect || cultistsFervorEffect->GetTimeRemaining() < 500) {
-        if (cur_energy > 5 && !cultistsFervor.GetRecharge()) {
-            if (UseSkillWithTimer(0)) {
-                return true;
-            }
-        }
-    }
-
     if (hexedAlly) {
         GW::SkillbarSkill cureHex = skillbar->skills[4];
         GW::Skill* cureHexInfo = GW::SkillbarMgr::GetSkillConstantData(cureHex.skill_id);
@@ -296,9 +292,26 @@ bool NecromancerSidekick::UseCombatSkill() {
         }
     }
 
+    if (lowest_health_enemy && lowest_health_enemy->hp < .5 && (sidekickLiving->hp < .7 || sidekickLiving->energy < .5)) {
+        GW::SkillbarSkill signetOfLostSouls = skillbar->skills[5];
+        if (!signetOfLostSouls.GetRecharge()) {
+            if (UseSkillWithTimer(5, lowest_health_enemy->agent_id)) {
+                return true;
+            }
+        }
+    }
+
+    if (lowEnergyAlly && sidekickLiving->hp > .7) {
+        GW::SkillbarSkill bloodIsPower = skillbar->skills[0];
+        if (UseSkillWithTimer(0,lowEnergyAlly->agent_id)) {
+            bloodIsPowerSet.erase(lowEnergyAlly->agent_id);
+            return true;
+        }
+    }
+
     GW::SkillbarSkill orderOfPain = skillbar->skills[2];
     GW::Skill* orderOfPainInfo = GW::SkillbarMgr::GetSkillConstantData(orderOfPain.skill_id);
-    if (sidekickLiving->hp > .45 && orderOfPainInfo && CanUseSkill(orderOfPain, orderOfPainInfo, cur_energy)) {
+    if (sidekickLiving->hp > .55 && orderOfPainInfo && CanUseSkill(orderOfPain, orderOfPainInfo, cur_energy)) {
         GW::Effect* orderOfPainEffect = GW::Effects::GetPlayerEffectBySkillId(orderOfPain.skill_id);
         if ((!orderOfPainEffect || orderOfPainEffect->GetTimeRemaining() < 1500) && UseSkillWithTimer(2)) {
             return true;
@@ -307,9 +320,9 @@ bool NecromancerSidekick::UseCombatSkill() {
 
     GW::SkillbarSkill darkFury = skillbar->skills[1];
     GW::Skill* darkFuryInfo = GW::SkillbarMgr::GetSkillConstantData(darkFury.skill_id);
-    if (sidekickLiving->hp > .45 && orderOfPainInfo && CanUseSkill(darkFury, darkFuryInfo, cur_energy)) {
+    if (sidekickLiving->hp > .55 && orderOfPainInfo && CanUseSkill(darkFury, darkFuryInfo, cur_energy)) {
         GW::Effect* darkFuryEffect = GW::Effects::GetPlayerEffectBySkillId(darkFury.skill_id);
-        if ((!darkFuryEffect || darkFuryEffect->GetTimeRemaining() < 1500) && UseSkillWithTimer(1)) {
+        if ((!darkFuryEffect || darkFuryEffect->GetTimeRemaining() < 500) && UseSkillWithTimer(1)) {
             return true;
         }
     }
@@ -443,4 +456,12 @@ void NecromancerSidekick::RemoveEffectCallback(const uint32_t agent_id, const ui
     if (!(agentLiving && agentLiving->allegiance == GW::Constants::Allegiance::Enemy && static_cast<GW::Constants::EffectID>(value) == GW::Constants::EffectID::necro_symbol)) return;
 
     necromancerEffectSet.erase(agent_id);
+}
+
+void NecromancerSidekick::MessageCallBack(GW::Packet::StoC::MessageCore* packet) {
+    if (packet->message[0] == 0x7BF) {
+        GW::Player* player = GW::PlayerMgr::GetPlayerByID(((uint32_t*)packet)[1]);
+        if (!player) return;
+        bloodIsPowerSet.insert(player->agent_id);
+    }
 }

@@ -29,6 +29,7 @@ public:
     void StopCombat() override;
     void StartCombat() override;
 
+    void EffectOnTarget(const uint32_t target, const uint32_t value) override;
     void HardReset() override;
     void ResetTargetValues() override;
     void CustomLoop(GW::AgentLiving* sidekick) override;
@@ -37,11 +38,13 @@ public:
     void SkillFinishCallback(const uint32_t caster_id);
     void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
+    void MessageCallBack(GW::Packet::StoC::MessageCore* packet) override;
     bool SetUpCombatSkills(uint32_t called_target_id) override;  
 
 private:
 
     std::optional<GW::GamePos> bloodBondCenter = std::nullopt;
+    std::unordered_set<GW::AgentID> bloodIsPowerSet = {};
     std::unordered_map<GW::AgentID, SkillDuration> bloodBondMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureConditionMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
@@ -50,5 +53,6 @@ private:
     GW::AgentLiving* hexedAlly = nullptr;
     GW::AgentLiving* enchantedEnemy = nullptr;
     GW::AgentLiving* conditionedAlly = nullptr;
+    GW::AgentLiving* lowEnergyAlly = nullptr;
     uint32_t conditionScore = 0;
 };

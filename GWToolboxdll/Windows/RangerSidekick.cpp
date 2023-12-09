@@ -166,7 +166,7 @@ bool RangerSidekick::UseOutOfCombatSkill() {
      float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
 
      GW::SkillbarSkill togetherAsOne = skillbar->skills[4];
-     if (lowest_health_ally && lowest_health_ally->hp < .5 && cur_energy >= 4 && !togetherAsOne.GetRecharge()) {
+     if (lowest_health_ally && lowest_health_ally->hp < .75 && cur_energy >= 4 && !togetherAsOne.GetRecharge()) {
         if (!GW::Effects::GetPlayerEffectBySkillId(togetherAsOne.skill_id)) {
             if (UseSkillWithTimer(4)) return true;
         }

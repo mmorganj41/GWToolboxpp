@@ -46,17 +46,17 @@ private:
     };
 
     std::unordered_map<GW::AgentID, std::array<DamageHolder, 5>> damageMap = {};
-    std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureConditionMap = {};
-    std::unordered_map<GW::AgentID, SkillDuration> vigorousSpiritMap = {};
+    std::unordered_map<GW::AgentID, SkillDuration> shieldOfAbsorptionMap = {};
+    std::unordered_map<GW::AgentID, SkillDuration> spiritBondMap = {};
+    std::unordered_map<GW::AgentID, SkillDuration> airOfEnchantmentMap = {};
     std::unordered_map<GW::AgentID, SkillDuration> seedOfLifeMap = {};
     std::set<uint32_t> monkEffectSet = {};
-    GW::AgentLiving* hexedAlly = nullptr;
     GW::AgentLiving* conditionedAlly = nullptr;
     GW::AgentLiving* lowestHealthNonParty = nullptr;
     GW::AgentLiving* lowestHealthIncludingPet = nullptr;
-    GW::AgentLiving* vigorousSpiritAlly = nullptr;
-    GW::AgentLiving* deadAlly = nullptr;
+    GW::AgentLiving* necromancerAgent = nullptr;
+    GW::AgentID shieldOfAbsorptionTarget = 0;
 
     GW::AgentID seedOfLifeTarget = 0;
 

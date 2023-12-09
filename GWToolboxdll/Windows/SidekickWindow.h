@@ -31,6 +31,7 @@ public:
         clock_t lastInteract;
         clock_t stuckTimer;
         clock_t movingTime;
+        clock_t lowEnergyTimer;
     };
 
     struct Proximity {
@@ -126,6 +127,7 @@ public:
     virtual void EffectOnTarget(const uint32_t target, const uint32_t value);
     virtual void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id);
     virtual void AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet);
+    virtual void MessageCallBack(GW::Packet::StoC::MessageCore* packet);
     
     void CheckForProximity(GW::AgentLiving* agentLiving);
 
@@ -249,9 +251,9 @@ private:
     };  
 
     std::unordered_set<GW::Constants::SkillID> wardSkills = {
-            GW::Constants::SkillID::Time_Ward,
-            GW::Constants::SkillID::Ebon_Battle_Standard_of_Honor, GW::Constants::SkillID::Ebon_Battle_Standard_of_Wisdom
-        };  
+        GW::Constants::SkillID::Time_Ward,
+        GW::Constants::SkillID::Ebon_Battle_Standard_of_Honor, GW::Constants::SkillID::Ebon_Battle_Standard_of_Wisdom
+    };  
 
     void HandleInterrupts(const uint32_t value_id, const uint32_t caster_id, const uint32_t value);
 

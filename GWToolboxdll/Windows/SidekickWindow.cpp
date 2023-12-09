@@ -142,6 +142,9 @@ void SidekickWindow::Initialize()
                     leaderState = Three;
                     break;
                 }
+                default: {
+                    MessageCallBack(packet);
+                }
             }
         }
     });
@@ -603,6 +606,11 @@ void SidekickWindow::Update(float delta)
                     wardEffect = std::nullopt;
                 }
 
+                if (sidekick->energy < .5 && TIMER_DIFF(timers.lowEnergyTimer) > 6000 && sidekick->primary != 4 && !GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Blood_is_Power)) {
+                    GW::Chat::SendChat('/', "yes");
+                    timers.lowEnergyTimer = TIMER_INIT();
+                }
+
                 uint32_t called_target = info->players[0].calledTargetId;
 
                 if (called_target) {
@@ -712,7 +720,7 @@ void SidekickWindow::Update(float delta)
 
                 if (!(targetLiving && targetLiving->GetIsAlive())) return;
 
-                if (!sidekick->GetIsAttacking() && (!sidekick->GetIsMoving() || (sidekick->GetIsMoving() && TIMER_DIFF(timers.movingTime) > 1000 * sidekick->weapon_attack_speed * sidekick->attack_speed_modifier / 2 + 50 )) && sidekick->GetIsIdle() && TIMER_DIFF(timers.interactTimer) > 750 + rand() % 500) {
+                if (!sidekick->GetIsAttacking() && (!sidekick->GetIsMoving() || (sidekick->GetIsMoving() && TIMER_DIFF(timers.movingTime) > 1000 * sidekick->weapon_attack_speed * sidekick->attack_speed_modifier / 2 + 50 )) && !isCasting(sidekick) && TIMER_DIFF(timers.interactTimer) > 750 + rand() % 500) {
                     timers.interactTimer = TIMER_INIT();
                     CheckStuck();
                     GW::GameThread::Enqueue([&]() -> void {
@@ -1296,4 +1304,8 @@ void SidekickWindow::HandleInterrupts(const uint32_t value_id, const uint32_t ca
           static_cast<uint32_t>(cast_time * 1000),
       };
       interrupts.insert_or_assign(caster_id, interrupt);
+}
+
+void SidekickWindow::MessageCallBack(GW::Packet::StoC::MessageCore* packet) {
+      UNREFERENCED_PARAMETER(packet);
 }
