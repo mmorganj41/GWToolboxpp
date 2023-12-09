@@ -306,6 +306,7 @@ bool NecromancerSidekick::UseCombatSkill() {
     
     if (monkAgent && sidekickLiving->hp > .65 && TIMER_DIFF(monkTimer) > 10000) {
         if (UseSkillWithTimer(0, monkAgent->agent_id)) {
+            monkTimer = TIMER_INIT();
             return true;
         }
     }
