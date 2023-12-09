@@ -366,6 +366,7 @@ void NecromancerSidekick::HardReset() {
     bloodIsPowerSet.clear();
     removeEnchantmentMap.clear();
     conditionScore = 0;
+    lowEnergyAlly = nullptr;
 }
 
 void NecromancerSidekick::StopCombat() {
@@ -383,6 +384,7 @@ void NecromancerSidekick::ResetTargetValues()
     conditionedAlly = nullptr;
     conditionScore = 0;
     monkAgent = nullptr;
+    lowEnergyAlly = nullptr;
 }
 
 void NecromancerSidekick::StartCombat()
@@ -472,7 +474,6 @@ void NecromancerSidekick::RemoveEffectCallback(const uint32_t agent_id, const ui
 void NecromancerSidekick::MessageCallBack(GW::Packet::StoC::MessageCore* packet) {
     if (packet->message[0] == 0x7BF) {
         GW::Player* player = GW::PlayerMgr::GetPlayerByID(packet->message[2]-256);
-        Log::Info("my player id: %d sender id: %d", GW::PlayerMgr::GetPlayerNumber(), packet->message[2] - 256);
         if (!player) return;
         bloodIsPowerSet.insert(player->agent_id);
     }
