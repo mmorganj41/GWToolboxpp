@@ -331,9 +331,9 @@ bool MonkSidekick::UseCombatSkill() {
         return false;
     }
 
-    GW::SkillbarSkill blessedAura = skillbar->skills[0];
+    GW::SkillbarSkill blessedAura = skillbar->skills[1];
     if (cur_energy > 10 && !blessedAura.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
-        if (UseSkillWithTimer(0)) {
+        if (UseSkillWithTimer(1)) {
             return true;
         }
     }
@@ -452,9 +452,9 @@ bool MonkSidekick::UseOutOfCombatSkill()
         return false;
     }
 
-    GW::SkillbarSkill blessedAura = skillbar->skills[0];
+    GW::SkillbarSkill blessedAura = skillbar->skills[1];
     if (cur_energy > 10 && !blessedAura.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
-        if (UseSkillWithTimer(0)) {
+        if (UseSkillWithTimer(1)) {
             return true;
         }
     }
