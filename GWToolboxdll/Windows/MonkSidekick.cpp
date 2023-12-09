@@ -621,3 +621,33 @@ void MonkSidekick::GenericModifierCallback(uint32_t type, uint32_t caster_id, fl
         damageMap.at(caster_id)[index] = {currentDamageHolder.timeStamp, currentDamageHolder.damage + dmg, currentDamageHolder.packets + 1} ;
     }
 }
+
+bool MonkSidekick::SetUpCombatSkills(uint32_t called_target_id) {
+    UNREFERENCED_PARAMETER(called_target_id);
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    if (!skillbar) {
+        return false;
+    }
+
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
+
+     float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (isCasting(sidekickLiving)) {
+        return false;
+    }
+
+    GW::SkillbarSkill airOfEnchantment = skillbar->skills[6];
+    if (cur_energy > 5 && !airOfEnchantment.GetRecharge()) {
+        if (necromancerAgent && (!airOfEnchantmentMap.contains(necromancerAgent->agent_id) || airOfEnchantmentMap[necromancerAgent->agent_id].duration - TIMER_DIFF(airOfEnchantmentMap[necromancerAgent->agent_id].startTime) < 2000)) {
+            if (UseSkillWithTimer(6, necromancerAgent->agent_id)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}

@@ -36,6 +36,7 @@ public:
     void AddEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void RemoveEffectCallback(const uint32_t agent_id, const uint32_t value) override;
     void AddEffectPacketCallback(GW::Packet::StoC::AddEffect* packet) override;
+    bool SetUpCombatSkills(uint32_t called_target_id) override;  
     void GenericModifierCallback(uint32_t type, uint32_t caster_id, float value, uint32_t cause_id) override;
 
 private:

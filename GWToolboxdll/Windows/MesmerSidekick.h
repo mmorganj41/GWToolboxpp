@@ -88,3 +88,4 @@ private:
     void ClearCurrentInterruptSkill();
     void SetCurrentInterruptSkill(InterruptSkill interruptSkill, SkillInfo skillInfo, std::optional<int32_t> next_sequence_time);
 };
+

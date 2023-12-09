@@ -58,6 +58,9 @@ void NecromancerSidekick::EffectOnTarget(const uint32_t target, const uint32_t v
         bloodBondCenter = targetLiving->pos;
         checking_agents = GW::Constants::SkillID::Blood_Bond;
     }
+    else if (party_ids.contains(target) && value == 224) {
+        bloodIsPowerSet.erase(target);
+    }
 }
 
 void NecromancerSidekick::SkillCallback(const uint32_t value_id, const uint32_t caster_id, const uint32_t value, const std::optional<uint32_t> target_id) {
@@ -225,20 +228,10 @@ bool NecromancerSidekick::SetUpCombatSkills(uint32_t called_target_id){
         return false;
     }
 
-    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+    //float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
 
     if (isCasting(sidekickLiving)) {
         return false;
-    }
-
-    GW::SkillbarSkill cultistsFervor = skillbar->skills[0];
-    GW::Effect* cultistsFervorEffect = GW::Effects::GetPlayerEffectBySkillId(cultistsFervor.skill_id);
-    if (!cultistsFervorEffect || cultistsFervorEffect->GetTimeRemaining() < 500) {
-        if (cur_energy > 5 && !cultistsFervor.GetRecharge()) {
-            if (UseSkillWithTimer(0)) {
-                return true;
-            }
-        }
     }
 
     return false;
@@ -304,7 +297,6 @@ bool NecromancerSidekick::UseCombatSkill() {
     if (lowEnergyAlly && sidekickLiving->hp > .7) {
         GW::SkillbarSkill bloodIsPower = skillbar->skills[0];
         if (UseSkillWithTimer(0,lowEnergyAlly->agent_id)) {
-            bloodIsPowerSet.erase(lowEnergyAlly->agent_id);
             return true;
         }
     }
@@ -355,12 +347,14 @@ void NecromancerSidekick::HardReset() {
     conditionedAlly = nullptr;
     enchantedEnemy = nullptr;
     cureHexMap.clear();
+    bloodIsPowerSet.clear();
     removeEnchantmentMap.clear();
     conditionScore = 0;
 }
 
 void NecromancerSidekick::StopCombat() {
     bloodBondMap.clear();
+    bloodIsPowerSet.clear();
     necromancerEffectSet.clear();
     cureHexMap.clear();
     removeEnchantmentMap.clear();
@@ -460,7 +454,7 @@ void NecromancerSidekick::RemoveEffectCallback(const uint32_t agent_id, const ui
 
 void NecromancerSidekick::MessageCallBack(GW::Packet::StoC::MessageCore* packet) {
     if (packet->message[0] == 0x7BF) {
-        GW::Player* player = GW::PlayerMgr::GetPlayerByID(((uint32_t*)packet)[1]);
+        GW::Player* player = GW::PlayerMgr::GetPlayerByID(packet->message[2]-256);
         if (!player) return;
         bloodIsPowerSet.insert(player->agent_id);
     }
