@@ -54,5 +54,6 @@ private:
     GW::AgentLiving* enchantedEnemy = nullptr;
     GW::AgentLiving* conditionedAlly = nullptr;
     GW::AgentLiving* lowEnergyAlly = nullptr;
+    GW::AgentLiving* monkAgent = nullptr;
     uint32_t conditionScore = 0;
 };

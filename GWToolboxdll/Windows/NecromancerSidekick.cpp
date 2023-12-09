@@ -37,6 +37,7 @@
 // blood bond 889
 
 namespace {
+    clock_t monkTimer = 0;
     clock_t hexTimer = 0;
     const uint32_t blind_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::blind)));
     const uint32_t dazed_bin = static_cast<uint32_t>(pow(2U, static_cast<uint32_t>(GW::Constants::EffectID::dazed)));
@@ -214,6 +215,14 @@ void NecromancerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
             }
         }
     }
+
+    for (auto& it : party_ids) {
+        if (monkAgent) break;
+        GW::Agent* agent = GW::Agents::GetAgentByID(it);
+        GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+        if (!agentLiving) continue;
+        if (agentLiving->primary == 3 && agentLiving->GetIsAlive()) monkAgent = agentLiving;
+    }
 }
 
 bool NecromancerSidekick::SetUpCombatSkills(uint32_t called_target_id){
@@ -293,9 +302,14 @@ bool NecromancerSidekick::UseCombatSkill() {
             }
         }
     }
-
+    GW::SkillbarSkill bloodIsPower = skillbar->skills[0];
+    
+    if (monkAgent && sidekickLiving->hp > .65 && TIMER_DIFF(monkTimer) > 10000) {
+        if (UseSkillWithTimer(0, monkAgent->agent_id)) {
+            return true;
+        }
+    }
     if (lowEnergyAlly && sidekickLiving->hp > .7) {
-        GW::SkillbarSkill bloodIsPower = skillbar->skills[0];
         if (UseSkillWithTimer(0,lowEnergyAlly->agent_id)) {
             return true;
         }
@@ -344,6 +358,7 @@ void NecromancerSidekick::HardReset() {
     bloodBondMap.clear();
     necromancerEffectSet.clear();
     hexedAlly = nullptr;
+    monkAgent = nullptr;
     conditionedAlly = nullptr;
     enchantedEnemy = nullptr;
     cureHexMap.clear();
@@ -366,6 +381,7 @@ void NecromancerSidekick::ResetTargetValues()
     enchantedEnemy = nullptr;
     conditionedAlly = nullptr;
     conditionScore = 0;
+    monkAgent = nullptr;
 }
 
 void NecromancerSidekick::StartCombat()
@@ -455,6 +471,7 @@ void NecromancerSidekick::RemoveEffectCallback(const uint32_t agent_id, const ui
 void NecromancerSidekick::MessageCallBack(GW::Packet::StoC::MessageCore* packet) {
     if (packet->message[0] == 0x7BF) {
         GW::Player* player = GW::PlayerMgr::GetPlayerByID(packet->message[2]-256);
+        Log::Info("my player id: %d sender id: %d", GW::PlayerMgr::GetPlayerNumber(), packet->message[2] - 256);
         if (!player) return;
         bloodIsPowerSet.insert(player->agent_id);
     }
