@@ -60,6 +60,8 @@ void SidekickWindow::Initialize()
 {
     ToolboxWindow::Initialize();
 
+    Setup();
+
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericModifier>(&GenericModifier_Entry, [this](GW::HookStatus* status, GW::Packet::StoC::GenericModifier* packet) -> void {
         UNREFERENCED_PARAMETER(status);
         if (!enabled) return;
