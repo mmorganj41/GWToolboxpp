@@ -667,7 +667,7 @@ void SidekickWindow::Update(float delta)
                     else if (castingWard && !sidekick->GetIsMoving() && !isCasting(sidekick))
                         if (wardEffect) {
                             if (!target || (target && GW::GetDistance(wardEffect->position, target->pos) < GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
-                                if (GW::GetDistance(wardEffect->position, sidekick->pos) > GW::Constants::Range::Adjacent) {
+                                if (GW::GetDistance(wardEffect->position, sidekick->pos) > GW::Constants::Range::Touch) {
                                     GW::Agents::Move(wardEffect->position);
                                     return;
                                 }

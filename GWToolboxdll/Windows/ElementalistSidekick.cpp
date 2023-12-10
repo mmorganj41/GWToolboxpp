@@ -97,7 +97,7 @@ bool ElementalistSidekick::UseCombatSkill()
     GW::SkillbarSkill vanguardBannerOfHonor = skillbar->skills[5];
     bool canUseHonor = !vanguardBannerOfHonor.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfHonor.skill_id);
     if (target && cur_energy > 10 && canUseHonor) {
-        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Adjacent) ||
+        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Touch) ||
             (target && !wardEffect && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4))
             {
             if (UseSkillWithTimer(5)) {

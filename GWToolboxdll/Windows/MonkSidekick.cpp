@@ -357,7 +357,7 @@ bool MonkSidekick::UseCombatSkill() {
     GW::SkillbarSkill vanguardBannerOfWisdom = skillbar->skills[5];
     bool canUseWisdom = !vanguardBannerOfWisdom.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfWisdom.skill_id);
     if (cur_energy > 10 && canUseWisdom) {
-        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Adjacent) ||
+        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Touch) ||
             (target && !wardEffect && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
             if (UseSkillWithTimer(5)) {
                 castingWard = false;
@@ -405,7 +405,7 @@ bool MonkSidekick::UseCombatSkill() {
 
     if (cur_energy < 5) return false;
     
-    if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .6 && lowestHealthIncludingPet->GetIsEnchanted()) {
+    if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .68 && lowestHealthIncludingPet->GetIsEnchanted()) {
         if (UseSkillWithTimer(2, lowestHealthIncludingPet->agent_id)) {
             return true;
         }
