@@ -181,9 +181,6 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
                 }
             }
         }
-        if (!lowEnergyAlly && bloodIsPowerSet.contains(agentLiving->agent_id)) {
-            lowEnergyAlly = agentLiving;
-        }
     }
 
     return false;
@@ -222,6 +219,14 @@ void NecromancerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
         GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
         if (!agentLiving) continue;
         if (agentLiving->primary == 3 && agentLiving->GetIsAlive()) monkAgent = agentLiving;
+    }
+
+    for (auto& it : bloodIsPowerSet) {
+        GW::Agent* agent = GW::Agents::GetAgentByID(it);
+        GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+        if (!(agentLiving && party_ids.contains(it))) continue;
+        lowEnergyAlly = agentLiving;
+        break;  
     }
 }
 

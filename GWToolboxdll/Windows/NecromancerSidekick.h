@@ -44,7 +44,7 @@ public:
 private:
 
     std::optional<GW::GamePos> bloodBondCenter = std::nullopt;
-    std::unordered_set<GW::AgentID> bloodIsPowerSet = {};
+    std::set<GW::AgentID> bloodIsPowerSet = {};
     std::unordered_map<GW::AgentID, SkillDuration> bloodBondMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureConditionMap = {};
     std::unordered_map<GW::AgentID, GW::AgentID> cureHexMap = {};
