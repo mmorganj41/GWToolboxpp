@@ -60,6 +60,7 @@
 #include <Windows/RitualistSidekick.h>
 #include <Windows/TradeWindow.h>
 #include <Windows/TravelWindow.h>
+#include <Windows/WurmSidekick.h>
 #ifdef _DEBUG
 #include <Windows/DoorMonitorWindow.h>
 #include <Windows/PacketLoggerWindow.h>
@@ -147,6 +148,7 @@ namespace {
         MesmerSidekick::Instance(),
         MonkSidekick::Instance(),
         ParagonSidekick::Instance(),
+        WurmSidekick::Instance(),
         RangerSidekick::Instance(),
         RitualistSidekick::Instance(),
         IWindow::Instance(),

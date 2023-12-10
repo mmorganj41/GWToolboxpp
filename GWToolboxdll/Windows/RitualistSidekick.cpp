@@ -141,6 +141,16 @@ bool RitualistSidekick::UseCombatSkill() {
         }
     }
 
+    if ((!spiritInEarshot && cur_energy > 10)) {
+        GW::SkillbarSkill summonSpirits = skillbar->skills[5];
+        if (!summonSpirits.GetRecharge()) {
+             if (UseSkillWithTimer(5)) {
+                 return true;
+             }
+        }
+    }
+
+
     GW::SkillbarSkill boon_of_creation_skillbar = skillbar->skills[6];
     if (!GW::Effects::GetPlayerEffectBySkillId(boon_of_creation_skillbar.skill_id)) {
         GW::Skill* boon_of_creation_skillinfo = GW::SkillbarMgr::GetSkillConstantData(boon_of_creation_skillbar.skill_id);
@@ -184,7 +194,7 @@ bool RitualistSidekick::UseCombatSkill() {
 
     if (TIMER_DIFF(armorOfUnfeelingTimer) > 36000 || newSpirit) armorOfUnfeelingTimer = 0;
 
-    if ((!spiritInEarshot && cur_energy > 10) || (lowHealthSpirit && armorOfUnfeelingTimer != 0 && cur_energy > 19)) {
+    if ((lowHealthSpirit && armorOfUnfeelingTimer != 0 && cur_energy > 19)) {
         GW::SkillbarSkill summonSpirits = skillbar->skills[5];
         if (!summonSpirits.GetRecharge()) {
             if (UseSkillWithTimer(5)) {
