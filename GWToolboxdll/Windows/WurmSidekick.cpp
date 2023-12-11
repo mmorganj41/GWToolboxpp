@@ -70,7 +70,14 @@ bool WurmSidekick::UseCombatSkill() {
         }
     }
 
-    if (!isCasting(sidekickLiving)) return false; 
+    if (isCasting(sidekickLiving)) return false; 
+
+    GW::SkillbarSkill siege = skillbar->skills[3];
+    if (target && siege.skill_id == GW::Constants::SkillID::Junundu_Siege && !siege.GetRecharge() && GW::GetDistance(target->pos, sidekickLiving->pos) > GW::Constants::Range::Nearby) {
+        if (UseSkillWithTimer(3, target->agent_id)) {
+            return true;
+        }
+    }
 
     GW::SkillbarSkill bite = skillbar->skills[2];
     if (target && target->GetIsKnockedDown() && !bite.GetRecharge()) {
