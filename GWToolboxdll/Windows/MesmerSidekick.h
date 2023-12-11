@@ -30,7 +30,7 @@ public:
         uint8_t priority;
     };
 
-    enum InterruptSkill { Overload = 1, Tease = 5, CryOfFrustration = 6, CryOfPain = 3, PowerDrain = 4 };
+    enum InterruptSkill { Overload = 1, CryOfFrustration = 6, CryOfPain = 3, PowerDrain = 4 };
 
     bool UseCombatSkill() override;      // For using skills in combat
     bool UseOutOfCombatSkill() override; // For using skills out of combat

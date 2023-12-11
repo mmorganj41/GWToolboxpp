@@ -925,6 +925,7 @@ void SidekickWindow::GenericValueCallback(const uint32_t value_id, const uint32_
                     float cast_time = cast_times[caster_id];
                     cast_times.erase(caster_id);
                     SkillDuration skillDuration = {TIMER_INIT(), cast_time || 1000 };
+                    if (GW::Constants::SkillID::Time_Ward == static_cast<GW::Constants::SkillID>(value)) skillDuration.duration = 19000;
                     Ward ward = {agent->pos, skillDuration};
                     wardEffect = ward;
                 }                

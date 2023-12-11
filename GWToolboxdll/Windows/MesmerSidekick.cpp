@@ -100,6 +100,26 @@ bool MesmerSidekick::UseCombatSkill()
         return false;
     }
 
+   GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
+
+    GW::SkillbarSkill timeWard = skillbar->skills[5];
+   GW::Effect* timeWardEffect = GW::Effects::GetPlayerEffectBySkillId(timeWard.skill_id);
+    if (target && cur_energy > 10 && !timeWard.GetRecharge() && (!timeWardEffect || timeWardEffect->GetTimeRemaining() < 1000)) {
+        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Touch) ||
+            (target && !wardEffect && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
+            if (UseSkillWithTimer(5)) {
+                castingWard = false;
+                return true;
+            }
+        }
+        else {
+            castingWard = true;
+        }
+    }
+    else {
+        castingWard = false;
+    }
+
     if (currentInterruptSkill.interruptSkill != std::nullopt) {
         GW::Agent* agent = GW::Agents::GetAgentByID(currentInterruptSkill.target_id);
         GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
@@ -237,26 +257,23 @@ void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {
 
         float cur_energy = sidekick->max_energy * sidekick->energy;
 
-        GW::SkillbarSkill tease = skillbar->skills[5];
         GW::SkillbarSkill overload = skillbar->skills[1];
         GW::SkillbarSkill cryOfPain = skillbar->skills[3];
         GW::SkillbarSkill powerDrain = skillbar->skills[4];
         GW::SkillbarSkill cryOfFrustration = skillbar->skills[6];
 
-bool canTease = !overload.GetRecharge() && cur_energy >= 5 && sidekick->max_energy - cur_energy >= 10;
 bool canOverload = !overload.GetRecharge() && cur_energy >= 5;
 bool canCryOfPain = !cryOfPain.GetRecharge() && cur_energy >= 10;
 bool canPowerDrain = !powerDrain.GetRecharge() && cur_energy >= 5 && sidekick->max_energy - cur_energy >= 15;
 bool canCryOfFrustration = !cryOfFrustration.GetRecharge() && cur_energy >= 10;
 
-std::optional<SkillInfo> teaseSkill = std::nullopt;
 std::optional<SkillInfo> overloadSkill = std::nullopt;
 std::optional<SkillInfo> cryOfPainSkill = std::nullopt;
 std::optional<SkillInfo> powerDrainSkill = std::nullopt;
 std::optional<SkillInfo> cryOfFrustrationSkill = std::nullopt;
 std::optional<SkillInfo> prioritizedSkill = std::nullopt;
 
-if (!canOverload && !canPowerDrain && !canCryOfPain && !canCryOfFrustration && !canTease) return;
+if (!canOverload && !canPowerDrain && !canCryOfPain && !canCryOfFrustration) return;
 
 const int after_cast_two_cast = 750 + 250 * fast_casting_activation_array[fastCasting] + ping;
 
@@ -300,9 +317,6 @@ for (auto& it : active_skills) {
     if (canPowerDrain && it.second.skill_type == SkillType::SPELL || it.second.skill_type == SkillType::CHANT) {
         if (!powerDrainSkill || powerDrainSkill->priority < it.second.priority) powerDrainSkill = it.second;
     }
-    if (canTease && it.second.skill_type == SkillType::SPELL) {
-        if (!teaseSkill || teaseSkill->priority < it.second.priority) teaseSkill = it.second;
-    }
 
     if (canCryOfPain && mesmerEffectSet.contains(it.first) && caster->GetIsHexed()) {
         if (!cryOfPainSkill || cryOfPainSkill->priority < it.second.priority) cryOfPainSkill = it.second;
@@ -322,9 +336,6 @@ if (currentInterruptSkill.interruptSkill == std::nullopt) {
     }
     else if (cryOfFrustrationSkill) {
         SetCurrentInterruptSkill(CryOfFrustration, *cryOfFrustrationSkill, minimum_next_sequence);
-    }
-    else if (teaseSkill) {
-        SetCurrentInterruptSkill(Tease, *teaseSkill, minimum_next_sequence);
     }
     else if (overloadSkill) {
         SetCurrentInterruptSkill(Overload, *overloadSkill, minimum_next_sequence);

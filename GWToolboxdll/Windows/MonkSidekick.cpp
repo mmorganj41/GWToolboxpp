@@ -340,7 +340,12 @@ bool MonkSidekick::UseCombatSkill() {
     GW::SkillbarSkill blessedAura = skillbar->skills[1];
     if (cur_energy > 10 && !blessedAura.GetRecharge()) {
         if (GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain) && !blessedAuraWithHeroic) {
-            if (UseSkillWithTimer(1)) {
+            GW::Effect* blessedAuraEffect = GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id);
+            if (blessedAuraEffect) {
+                GW::Effects::DropBuff(blessedAuraEffect->effect_id);
+                return true;
+            }
+            else if (UseSkillWithTimer(1)) {
                 blessedAuraWithHeroic = true;
                 return true;
             }
@@ -350,7 +355,6 @@ bool MonkSidekick::UseCombatSkill() {
                 return true;
             }
         }
-       
     }
 
     GW::SkillbarSkill airOfEnchantment = skillbar->skills[6];
@@ -470,7 +474,12 @@ bool MonkSidekick::UseOutOfCombatSkill()
     GW::SkillbarSkill blessedAura = skillbar->skills[1];
     if (cur_energy > 10 && !blessedAura.GetRecharge()) {
         if (GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain) && !blessedAuraWithHeroic) {
-            if (UseSkillWithTimer(1)) {
+            GW::Effect* blessedAuraEffect = GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id);
+            if (blessedAuraEffect) {
+                GW::Effects::DropBuff(blessedAuraEffect->effect_id);
+                return true;
+            }
+            else if (UseSkillWithTimer(1)) {
                 blessedAuraWithHeroic = true;
                 return true;
             }
@@ -482,6 +491,7 @@ bool MonkSidekick::UseOutOfCombatSkill()
         }
     }
 
+
     return false;
 }
 
@@ -491,11 +501,9 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
     GW::AgentLiving* targetLiving = targetAgent ? targetAgent->GetAsAgentLiving() : nullptr;
 
     if (!targetLiving) return;
-    Log::Info("value added %d", value);
 
     if (party_ids.contains(target) && value == 489) {
-        SkillDuration skillDuration = {TIMER_INIT(), 8000};
-        Log::Info("seed of life applied");
+        SkillDuration skillDuration = {TIMER_INIT(), 9000};
         seedOfLifeMap.insert_or_assign(target, skillDuration);
     }
     // 1254 spirit bond
@@ -509,12 +517,12 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
                 break;
             }
             case 1650: {
-                SkillDuration skillDuration = {TIMER_INIT(), 11000};
+                SkillDuration skillDuration = {TIMER_INIT(), 14000};
                 shieldOfAbsorptionMap.insert_or_assign(target, skillDuration);
                 break;
             }
             case 1255: {
-                SkillDuration skillDuration = {TIMER_INIT(), 16000};
+                SkillDuration skillDuration = {TIMER_INIT(), 20000};
                 airOfEnchantmentMap.insert_or_assign(target, skillDuration);
                 break;
             }

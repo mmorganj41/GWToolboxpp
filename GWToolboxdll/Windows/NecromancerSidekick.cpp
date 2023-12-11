@@ -53,8 +53,6 @@ void NecromancerSidekick::EffectOnTarget(const uint32_t target, const uint32_t v
 
     if (!targetLiving) return;
 
-    Log::Info("value id %d", value);
-
     if (targetLiving->allegiance == GW::Constants::Allegiance::Enemy && value == 889) {
         bloodBondCenter = targetLiving->pos;
         checking_agents = GW::Constants::SkillID::Blood_Bond;
@@ -118,7 +116,7 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
     if (agentLiving->allegiance == GW::Constants::Allegiance::Enemy && agentLiving->GetIsAlive()) { 
         if (checking_agents && bloodBondCenter) {
             if (GW::GetSquareDistance(*bloodBondCenter, agentLiving->pos) <= GW::Constants::SqrRange::Adjacent) {
-                SkillDuration skillDuration = {TIMER_INIT(), static_cast<uint32_t>(agentLiving->GetHasBossGlow() ? 6000 : 11000)};
+                SkillDuration skillDuration = {TIMER_INIT(), static_cast<uint32_t>(agentLiving->GetHasBossGlow() ? 8000 : 15000)};
                 bloodBondMap.insert_or_assign(agentLiving->agent_id, skillDuration);
             }
         }
