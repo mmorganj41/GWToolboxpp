@@ -45,6 +45,10 @@ bool ElementalistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentL
         if (burningEffectSet.contains(agentLiving->agent_id) && (!burningTarget || burningTarget->hp > agentLiving->hp)) burningTarget = agentLiving;
     }
 
+    if (party_ids.contains(agentLiving->agent_id) && !agentLiving->GetIsAlive() && GW::GetDistance(agentLiving->pos, playerLiving->pos) <= GW::Constants::Range::Earshot) {
+        deadAlly = agentLiving;
+    }
+
     return false;
 }
 
@@ -83,6 +87,13 @@ bool ElementalistSidekick::UseCombatSkill()
     if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
         if (UseSkillWithTimer(6)) return true;
     };
+
+    GW::SkillbarSkill weReturn = skillbar->skills[4];
+    if (deadAlly && cur_energy >= 35 && !weReturn.GetRecharge()) {
+        if (UseSkillWithTimer(4, deadAlly->agent_id)) {
+            return true;
+        }
+    }
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
@@ -214,6 +225,7 @@ void ElementalistSidekick::HardReset()
 {
     burningEffectSet.clear();
     burningTarget = nullptr;
+    deadAlly = nullptr;
 }
 
 void ElementalistSidekick::StopCombat()
@@ -224,4 +236,5 @@ void ElementalistSidekick::StopCombat()
 void ElementalistSidekick::ResetTargetValues()
 {
     burningTarget = nullptr;
+    deadAlly = nullptr;
 }

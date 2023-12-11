@@ -90,6 +90,15 @@ bool ParagonSidekick::UseCombatSkill() {
         }
     }
 
+    GW::SkillbarSkill saveYourselves = skillbar->skills[1];
+    GW::Skill* saveYourselvesInfo = GW::SkillbarMgr::GetSkillConstantData(saveYourselves.skill_id);
+    if (TIMER_DIFF(saveYourselvesTimer) > 5000 && saveYourselvesInfo && CanUseSkill(saveYourselves, saveYourselvesInfo, cur_energy)) {
+        if (UseSkillWithTimer(1)) {
+            saveYourselvesTimer = TIMER_INIT();
+            return true;
+        }
+    }
+
     if (!isCasting(sidekickLiving)) {
         GW::SkillbarSkill wildThrow = skillbar->skills[0];
         GW::Skill* wildThrowSkillInfo = GW::SkillbarMgr::GetSkillConstantData(wildThrow.skill_id);
@@ -109,15 +118,6 @@ bool ParagonSidekick::UseCombatSkill() {
                     return true;
                 }
             }
-        }
-    }
-
-    GW::SkillbarSkill saveYourselves = skillbar->skills[1];
-    GW::Skill* saveYourselvesInfo = GW::SkillbarMgr::GetSkillConstantData(saveYourselves.skill_id);
-    if (TIMER_DIFF(saveYourselvesTimer) > 4000 && saveYourselvesInfo && CanUseSkill(saveYourselves, saveYourselvesInfo, cur_energy)) {
-        if (UseSkillWithTimer(1)) {
-            saveYourselvesTimer = TIMER_INIT();
-            return true;
         }
     }
 

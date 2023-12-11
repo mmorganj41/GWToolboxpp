@@ -33,5 +33,5 @@ public:
 private:
     std::set<uint32_t> burningEffectSet = {};
     GW::AgentLiving* burningTarget = nullptr;
-
+    GW::AgentLiving* deadAlly = nullptr;
 };
