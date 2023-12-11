@@ -127,6 +127,12 @@ bool MonkSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* p
 void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
 {
     UNREFERENCED_PARAMETER(sidekick);
+
+    if (!GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain)) {
+        blessedAuraWithHeroic = false;
+    }
+
+
     if (state == Following || state == Picking_up) return;
 
     if (!seedOfLifeMap.empty()) {
@@ -332,10 +338,19 @@ bool MonkSidekick::UseCombatSkill() {
     }
 
     GW::SkillbarSkill blessedAura = skillbar->skills[1];
-    if (cur_energy > 10 && !blessedAura.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
-        if (UseSkillWithTimer(1)) {
-            return true;
+    if (cur_energy > 10 && !blessedAura.GetRecharge()) {
+        if (GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain) && !blessedAuraWithHeroic) {
+            if (UseSkillWithTimer(1)) {
+                blessedAuraWithHeroic = true;
+                return true;
+            }
         }
+        else if (!GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
+            if (UseSkillWithTimer(1)) {
+                return true;
+            }
+        }
+       
     }
 
     GW::SkillbarSkill airOfEnchantment = skillbar->skills[6];
@@ -453,9 +468,17 @@ bool MonkSidekick::UseOutOfCombatSkill()
     }
 
     GW::SkillbarSkill blessedAura = skillbar->skills[1];
-    if (cur_energy > 10 && !blessedAura.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
-        if (UseSkillWithTimer(1)) {
-            return true;
+    if (cur_energy > 10 && !blessedAura.GetRecharge()) {
+        if (GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain) && !blessedAuraWithHeroic) {
+            if (UseSkillWithTimer(1)) {
+                blessedAuraWithHeroic = true;
+                return true;
+            }
+        }
+        else if (!GW::Effects::GetPlayerEffectBySkillId(blessedAura.skill_id)) {
+            if (UseSkillWithTimer(1)) {
+                return true;
+            }
         }
     }
 

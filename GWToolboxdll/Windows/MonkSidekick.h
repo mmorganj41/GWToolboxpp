@@ -62,4 +62,6 @@ private:
     GW::AgentID seedOfLifeTarget = 0;
 
     uint32_t damagedAllies = 0;
+
+    bool blessedAuraWithHeroic = false;
 };
