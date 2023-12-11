@@ -39,6 +39,28 @@ namespace {
     clock_t stanceTimer = 0;
 } // namespace
 
+void ParagonSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
+{
+    GW::Agent* targetAgent = GW::Agents::GetAgentByID(target);
+    GW::AgentLiving* targetLiving = targetAgent ? targetAgent->GetAsAgentLiving() : nullptr;
+
+    if (!targetLiving) return;
+
+    if (value == 1482) {
+        heroicRefrainSet.erase(target);
+    }
+}
+
+void ParagonSidekick::MessageCallBack(GW::Packet::StoC::MessageCore* packet)
+{
+    if (packet->message[0] == 0x795) {
+        GW::Player* player = GW::PlayerMgr::GetPlayerByID(packet->message[2] - 256);
+        if (!player) return;
+        if (player->agent_id == GW::Agents::GetPlayerId()) return;
+        heroicRefrainSet.insert(player->agent_id);
+    }
+}
+
 bool ParagonSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving)
 {
     UNREFERENCED_PARAMETER(playerLiving);
@@ -112,20 +134,37 @@ bool ParagonSidekick::UseCombatSkill() {
         }
     }
 
-    GW::SkillbarSkill focusedAnger = skillbar->skills[5];
-    if (!GW::Effects::GetPlayerEffectBySkillId(focusedAnger.skill_id) && shoutTimer > 1000) {
-        if (cur_energy > 11 && !focusedAnger.GetRecharge()) {
+    GW::SkillbarSkill theyreOnFire = skillbar->skills[4];
+    if (cur_energy > 11 && !theyreOnFire.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(theyreOnFire.skill_id)) {
+        if (UseSkillWithTimer(4)) return true;
+    }
+
+    GW::SkillbarSkill heroicRefrain = skillbar->skills[5];
+    if (!GW::Effects::GetPlayerEffectBySkillId(heroicRefrain.skill_id)) {
+        heroicRefrainReady = false;
+        if (cur_energy > 5 && !heroicRefrain.GetRecharge()) {
             if (UseSkillWithTimer(5)) {
-                shoutTimer = TIMER_INIT();
+                return true;
+            }
+        }
+    }
+    else if (!heroicRefrainReady) {
+        if (cur_energy > 5 && !heroicRefrain.GetRecharge()) {
+            if (UseSkillWithTimer(5)) {
+                heroicRefrainReady = true;
                 return true;
             }
         }
     }
 
-    GW::SkillbarSkill theyreOnFire = skillbar->skills[4];
-    if (cur_energy > 11 && !theyreOnFire.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(theyreOnFire.skill_id)) {
-        if (UseSkillWithTimer(4)) return true;
+    if (heroicRefrainReady && heroicRefrainAlly) {
+        if (cur_energy > 5 && !heroicRefrain.GetRecharge()) {
+            if (UseSkillWithTimer(5, heroicRefrainAlly->agent_id)) {
+                return true;
+            }
+        }
     }
+
 
     return false;
  }
@@ -149,25 +188,48 @@ bool ParagonSidekick::UseOutOfCombatSkill() {
             }
         }
     }
+    if (!(cur_energy > 11 && GW::Effects::GetPlayerEffectBySkillId(aggressiveRefrain.skill_id))) return false;
 
-    if (TIMER_DIFF(shoutTimer) < 7000) return false;
+    if (TIMER_DIFF(shoutTimer) >= 5500) {
+            GW::SkillbarSkill fallBack = skillbar->skills[6];
+            GW::SkillbarSkill theyreOnFire = skillbar->skills[4];
+            if (!fallBack.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(fallBack.skill_id)) {
+                if (UseSkillWithTimer(6)) {
+                    shoutTimer = TIMER_INIT();
+                    return true;
+                }
+            }
+            else if (!theyreOnFire.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(theyreOnFire.skill_id)) {
+                if (UseSkillWithTimer(4)) {
+                    shoutTimer = TIMER_INIT();
+                    return true;
+                }
+            }
+    }
 
-    if (cur_energy > 11 && GW::Effects::GetPlayerEffectBySkillId(aggressiveRefrain.skill_id)) {
-        GW::SkillbarSkill fallBack = skillbar->skills[6];
-       GW::SkillbarSkill theyreOnFire = skillbar->skills[4];
-        if (!fallBack.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(fallBack.skill_id)) {
-           if (UseSkillWithTimer(6)) {
-               shoutTimer = TIMER_INIT();
-               return true;
-           }
-        }
-        else if (!theyreOnFire.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(theyreOnFire.skill_id)) {
-           if (UseSkillWithTimer(4)) {
-               shoutTimer = TIMER_INIT();
-               return true;
-           }
+    GW::SkillbarSkill heroicRefrain = skillbar->skills[5];
+
+    if (heroicRefrain.GetRecharge()) return false;
+
+    if (!GW::Effects::GetPlayerEffectBySkillId(heroicRefrain.skill_id)) {
+        heroicRefrainReady = false;
+            if (UseSkillWithTimer(5)) {
+                return true;
+            }
+    }
+    else if (!heroicRefrainReady) {
+            if (UseSkillWithTimer(5)) {
+                heroicRefrainReady = true;
+                return true;
         }
     }
+
+    if (heroicRefrainReady && heroicRefrainAlly) {
+        if (UseSkillWithTimer(5, heroicRefrainAlly->agent_id)) {
+            return true;
+        }
+    }
+
 
     return false;
 }
@@ -196,15 +258,18 @@ void ParagonSidekick::Setup() {
 void ParagonSidekick::ResetTargetValues() {
     moving_ally = nullptr;
     wild_blow_target = nullptr;
+    heroicRefrainAlly = nullptr;
 }
 
 void ParagonSidekick::HardReset()
 {
+    heroicRefrainAlly = nullptr;
     moving_ally = nullptr;
     wild_blow_target = nullptr;
     stanceMap.clear();
     saveYourselvesTimer = TIMER_INIT();
     shoutTimer = TIMER_INIT();
+    heroicRefrainSet.clear();
 }
 
 void ParagonSidekick::StartCombat() {
@@ -239,8 +304,39 @@ void ParagonSidekick::SkillCallback(const uint32_t value_id, const uint32_t cast
 }
 
 void ParagonSidekick::CustomLoop(GW::AgentLiving* sidekick) {
-    if (state == Following || state == Picking_up) return;
+    if (!heroicRefrainReady && !party_ids.empty()) {
+        for (auto& it : party_ids) {
+           if (it == GW::Agents::GetPlayerId()) continue;
+           if (heroicRefrainSet.contains(it)) continue;
+           GW::Agent* agent = GW::Agents::GetAgentByID(it);
+           GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+           if (!(agentLiving)) continue;
+           heroicRefrainSet.insert(it);
+        }
+    }
+    else {
+        for (auto& it : party_ids) {
+           if (it == GW::Agents::GetPlayerId()) continue;
+           if (heroicRefrainSet.contains(it)) continue;
+           GW::Agent* agent = GW::Agents::GetAgentByID(it);
+           GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+           if (!(agentLiving && agentLiving->GetIsAlive())) {
+                    heroicRefrainSet.insert(it);
+           }
+        }
+    }
 
+    for (auto& it : heroicRefrainSet) {
+        GW::Agent* agent = GW::Agents::GetAgentByID(it);
+        GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+        if (!(agentLiving && party_ids.contains(it) && agentLiving->GetIsAlive())) continue;
+        heroicRefrainAlly = agentLiving;
+        break;
+    }
+
+
+
+    if (state == Following || state == Picking_up) return;
 
     uint32_t prio_target = 0;
     std::optional<SkillDuration> prio_duration = std::nullopt;
@@ -276,4 +372,7 @@ void ParagonSidekick::CustomLoop(GW::AgentLiving* sidekick) {
         wild_blow_target = agentLiving;
     }
 
+
 }
+
+

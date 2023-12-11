@@ -409,6 +409,16 @@ void SidekickWindow::Update(float delta)
 
         CustomLoop(sidekick);
 
+        GW::Effect* heroicRefrain = GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain);
+
+        if (heroicRefrain) {
+            hasHeroicRefrain = true;
+        }
+        else if (hasHeroicRefrain && !heroicRefrain) {
+            hasHeroicRefrain = false;
+            GW::Chat::SendChat('/', "boo");
+        }
+
         bool still_in_combat = false;
 
         for (auto* a : *agent_array) {

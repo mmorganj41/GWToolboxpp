@@ -259,5 +259,5 @@ private:
 
     bool waitForInterrupt = false;
 
- 
+    bool hasHeroicRefrain = false;
 };
