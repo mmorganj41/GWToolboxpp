@@ -522,7 +522,7 @@ void SidekickWindow::Update(float delta)
             wardEffect = std::nullopt;
 
             if (!still_in_combat && closest_enemy &&
-                (GW::GetDistance(closest_enemy->pos, party_leader->pos) <= called_target ? GW::Constants::Range::Spellcast : GW::Constants::Range::Earshot || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
+                (GW::GetDistance(closest_enemy->pos, party_leader->pos) <= (called_target ? GW::Constants::Range::Spellcast : GW::Constants::Range::Earshot) || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
                 if (!starting_combat) {
                     starting_combat = true;
                     timers.changeStateTimer = TIMER_INIT();
