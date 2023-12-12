@@ -66,6 +66,13 @@ bool ElementalistSidekick::UseCombatSkill()
 
     float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
 
+    GW::SkillbarSkill weReturn = skillbar->skills[4];
+    if (deadAlly && cur_energy >= 35 && !weReturn.GetRecharge()) {
+        if (UseSkillWithTimer(4)) {
+            return true;
+        }
+    }
+
     if (isCasting(sidekickLiving)) {
         return false;
     }
@@ -87,13 +94,6 @@ bool ElementalistSidekick::UseCombatSkill()
     if (!GW::Effects::GetPlayerEffectBySkillId(auraOfRestoration.skill_id) && auraOfRestorationInfo && CanUseSkill(auraOfRestoration, auraOfRestorationInfo, cur_energy)) {
         if (UseSkillWithTimer(6)) return true;
     };
-
-    GW::SkillbarSkill weReturn = skillbar->skills[4];
-    if (deadAlly && cur_energy >= 35 && !weReturn.GetRecharge()) {
-        if (UseSkillWithTimer(4, deadAlly->agent_id)) {
-            return true;
-        }
-    }
 
     GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 

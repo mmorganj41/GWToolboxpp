@@ -167,7 +167,7 @@ public:
     std::optional<Ward> wardEffect = std::nullopt;
 
 private:
-    enum LeaderState { Normal, Split, Three };
+    enum LeaderState { Normal, Split, Three, Stay };
 
     LeaderState leaderState = Normal;
     LeaderState lastLeaderState = Normal;

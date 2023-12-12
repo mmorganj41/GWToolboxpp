@@ -145,6 +145,10 @@ void SidekickWindow::Initialize()
                     leaderState = Three;
                     break;
                 }
+                case 0x791: {
+                    leaderState = Stay;
+                    break;
+                }
                 default: {
                     MessageCallBack(packet);
                 }
@@ -338,6 +342,10 @@ void SidekickWindow::Update(float delta)
                         index = sidekick_position % 3;
                         break;
                     }
+                    case Stay: {
+                        index = 1;
+                        break;
+                    }
                 }
                 party_leader_id = GW::Agents::GetAgentIdByLoginNumber(party->players[index].login_number);
                 lastLeaderState = leaderState;
@@ -369,7 +377,10 @@ void SidekickWindow::Update(float delta)
                             if (sidekick_position % 3 != i % 3) continue;
                             break;
                         }
-
+                        case Stay: {
+                            if (i == 0) continue;
+                            break;
+                        }
                     }
                     const uint32_t agentId = GW::Agents::GetAgentIdByLoginNumber(party->players[i].login_number);
                     GW::Agent* agent = GW::Agents::GetAgentByID(agentId);

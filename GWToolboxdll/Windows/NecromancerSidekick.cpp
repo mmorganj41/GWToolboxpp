@@ -520,7 +520,9 @@ void NecromancerSidekick::RemoveEffectCallback(const uint32_t agent_id, const ui
 void NecromancerSidekick::MessageCallBack(GW::Packet::StoC::MessageCore* packet) {
     if (packet->message[0] == 0x7BF) {
         GW::Player* player = GW::PlayerMgr::GetPlayerByID(packet->message[2]-256);
+        Log::Info("message recieved from %d", packet->message[2] - 256);
         if (!player) return;
+        Log::Info("player %d need blood", player->agent_id);
         bloodIsPowerSet.insert(player->agent_id);
     }
 }
