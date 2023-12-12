@@ -87,6 +87,8 @@ bool RangerSidekick::UseCombatSkill() {
             if (UseSkillWithTimer(4)) return true;
         }
     }
+    
+    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
     if (pet && pet->GetIsAlive()) {
         GW::SkillbarSkill callOfHaste = skillbar->skills[5];
@@ -104,7 +106,6 @@ bool RangerSidekick::UseCombatSkill() {
                 return true;
             }
         }
-        GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
 
         if (target && target->GetIsAlive() && pet_attack_finished) {
             GW::SkillbarSkill scavengerStrike = skillbar->skills[2];
@@ -138,9 +139,32 @@ bool RangerSidekick::UseCombatSkill() {
         return false;
     }
 
-    GW::SkillbarSkill edgeOfExtinction = skillbar->skills[3];
-    if (cur_energy > 2 && !edgeOfExtinction.GetRecharge() && !hasEdge && enemiesInSpiritRange > 4) {
+    GW::SkillbarSkill skill3 = skillbar->skills[3];
+    if (skill3.skill_id == GW::Constants::SkillID::Edge_of_Extinction && cur_energy > 2 && !skill3.GetRecharge() && !hasEdge && enemiesInSpiritRange > 4) {
         if (UseSkillWithTimer(3)) return true;
+    }
+    else if (skill3.skill_id == GW::Constants::SkillID::Volley && cur_energy > 1 && !skill3.GetRecharge() && (TIMER_DIFF(timers.attackStartTimer) > 1000 * sidekickLiving->weapon_attack_speed * sidekickLiving->attack_speed_modifier / 2 + 50 || TIMER_DIFF(timers.attackStartTimer) < 150)) {
+        uint32_t max_adjacent = 0;
+        GW::AgentID best_adjacent_target = 0;
+        for (auto& it : enemyProximityMap) {
+            GW::Agent* agent = GW::Agents::GetAgentByID(it.first);
+            GW::AgentLiving* agentLiving = agent ? agent->GetAsAgentLiving() : nullptr;
+            if (!agentLiving) continue;
+
+            if (GW::GetDistance(agentLiving->pos, sidekickLiving->pos) > GW::Constants::Range::Spellcast * 6 / 5) continue;
+
+            if (it.second.adjacent > max_adjacent) {
+                max_adjacent = it.second.adjacent;
+                best_adjacent_target = it.first;
+            }
+        }
+
+        if (max_adjacent > 0 && best_adjacent_target) {
+            if (UseSkillWithTimer(3, best_adjacent_target)) return true;
+        }
+        else if (target) {
+            if (UseSkillWithTimer(3, target->agent_id)) return true;
+        } 
     }
 
     if (pet && !pet->GetIsAlive()) {
@@ -238,8 +262,8 @@ bool RangerSidekick::SetUpCombatSkills(uint32_t called_target_id) {
         }
     }
 
-    GW::SkillbarSkill edgeOfExtinction = skillbar->skills[3];
-    if (cur_energy > 2 && !edgeOfExtinction.GetRecharge() && !hasEdge && enemiesInSpiritRange > 4) {
+    GW::SkillbarSkill skill3 = skillbar->skills[3];
+    if (skill3.skill_id == GW::Constants::SkillID::Edge_of_Extinction && cur_energy > 2 && !skill3.GetRecharge() && !hasEdge && enemiesInSpiritRange > 4) {
         if (UseSkillWithTimer(3)) return true;
     }
 

@@ -433,6 +433,10 @@ void SidekickWindow::Update(float delta)
 
         bool still_in_combat = false;
 
+        if (!(party && party->players.valid())) return;
+
+        uint32_t called_target = party->players[0].calledTargetId;
+
         for (auto* a : *agent_array) {
             if (!a) continue;
             GW::AgentLiving* agentLiving = a->GetAsAgentLiving();
@@ -454,7 +458,7 @@ void SidekickWindow::Update(float delta)
                     }
                     case GW::Constants::Allegiance::Ally_NonAttackable: {
                         if (agentLiving->agent_id && party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive()) {
-                            if (agentLiving->GetIsAttacking() && (((state == Fighting || called_enemy) && agentLiving->agent_id == party_leader_id) || agentLiving->agent_id != party_leader_id)) {
+                            if (agentLiving->GetIsAttacking() && (((state == Fighting || called_target) && agentLiving->agent_id == party_leader_id) || agentLiving->agent_id != party_leader_id)) {
                                 if (!starting_combat) {
                                     starting_combat = true;
                                     timers.changeStateTimer = TIMER_INIT();
@@ -588,12 +592,6 @@ void SidekickWindow::Update(float delta)
 
         switch (state) {
             case Following: {
-                GW::PartyInfo* info = GW::PartyMgr::GetPartyInfo();
-
-                if (!(info && info->players.valid()))
-                    return;
-
-                uint32_t called_target = info->players[0].calledTargetId;
 
                 if (called_target && SetUpCombatSkills(called_target)) {
                     return;
@@ -621,11 +619,6 @@ void SidekickWindow::Update(float delta)
                 break;
             }
             case Fighting: {
-                GW::PartyInfo* info = GW::PartyMgr::GetPartyInfo();
-
-                if (!(info && info->players.valid()))
-                    return;
-
                 if (wardEffect && !(closest_enemy && GW::GetDistance(closest_enemy->pos, wardEffect->position) <= (GW::Constants::Range::Spellcast + GW::Constants::Range::Area / 2))) {
                     wardEffect = std::nullopt;
                 }
@@ -634,8 +627,6 @@ void SidekickWindow::Update(float delta)
                     GW::Chat::SendChat('/', "yes");
                     timers.lowEnergyTimer = TIMER_INIT();
                 }
-
-                uint32_t called_target = info->players[0].calledTargetId;
 
                 if (called_target) {
                     GW::Agent* called_agent = GW::Agents::GetAgentByID(called_target);

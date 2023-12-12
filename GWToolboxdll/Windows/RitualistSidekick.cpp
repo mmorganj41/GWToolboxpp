@@ -90,6 +90,7 @@ bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLivi
          {
              if (!weaponAlly && party_ids.contains(agentLiving->agent_id) && !agentLiving->GetIsWeaponSpelled()) {
                  switch (agentLiving->weapon_type) {
+                     case 1:
                      case 2:
                      case 3:
                      case 4:
@@ -98,13 +99,6 @@ bool RitualistSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLivi
                      case 7:
                      {
                          weaponAlly = agentLiving;
-                         break;
-                     }
-                     case 1:
-                     {
-                         if (agentLiving->attack_speed_modifier > 1) {
-                             weaponAlly = agentLiving;
-                         }
                          break;
                      }
                  }
