@@ -528,7 +528,7 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
     if (!targetLiving) return;
 
     if (party_ids.contains(target) && value == 489) {
-        SkillDuration skillDuration = {TIMER_INIT(), 9000};
+        SkillDuration skillDuration = {TIMER_INIT(), blessedAuraWithHeroic ? 9000 : 8000};
         seedOfLifeMap.insert_or_assign(target, skillDuration);
     }
     // 1254 spirit bond
@@ -542,12 +542,12 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
                 break;
             }
             case 1650: {
-                SkillDuration skillDuration = {TIMER_INIT(), 14000};
+                SkillDuration skillDuration = {TIMER_INIT(), blessedAuraWithHeroic ? 14000 : 11000};
                 shieldOfAbsorptionMap.insert_or_assign(target, skillDuration);
                 break;
             }
             case 1255: {
-                SkillDuration skillDuration = {TIMER_INIT(), 20000};
+                SkillDuration skillDuration = {TIMER_INIT(), blessedAuraWithHeroic ? 20000 : 16000};
                 airOfEnchantmentMap.insert_or_assign(target, skillDuration);
                 break;
             }
