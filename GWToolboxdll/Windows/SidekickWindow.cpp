@@ -488,7 +488,7 @@ void SidekickWindow::Update(float delta)
                 GW::AgentItem* itemAgent = a->GetAsAgentItem();
                 if (!itemAgent) continue;
                 if (itemAgent->owner && itemAgent->owner != sidekick->agent_id) continue;
-                if (GW::GetSquareDistance(itemAgent->pos, sidekick->pos) > GW::Constants::SqrRange::Spirit || itemAgent->pos.zplane != sidekick->pos.zplane) continue;
+                if (GW::GetSquareDistance(itemAgent->pos, party_leader->pos) > GW::Constants::SqrRange::Spirit || itemAgent->pos.zplane != sidekick->pos.zplane) continue;
                 if (ShouldItemBePickedUp(itemAgent)) {
                     Log::Info("State: picking up");
                     item_to_pick_up = itemAgent->agent_id;
@@ -521,7 +521,8 @@ void SidekickWindow::Update(float delta)
         if (state == Following || state == Picking_up) {
             wardEffect = std::nullopt;
 
-            if (!still_in_combat && closest_enemy && (GW::GetDistance(closest_enemy->pos, party_leader->pos) <= GW::Constants::Range::Earshot || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
+            if (!still_in_combat && closest_enemy &&
+                (GW::GetDistance(closest_enemy->pos, party_leader->pos) <= called_target ? GW::Constants::Range::Spellcast : GW::Constants::Range::Earshot || GW::GetDistance(closest_enemy->pos, sidekick->pos) <= GW::Constants::Range::Earshot)) {
                 if (!starting_combat) {
                     starting_combat = true;
                     timers.changeStateTimer = TIMER_INIT();
