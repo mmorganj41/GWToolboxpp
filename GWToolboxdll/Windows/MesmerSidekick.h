@@ -66,7 +66,6 @@ private:
 
     CurrentInterruptSkill currentInterruptSkill = {std::nullopt, 0, 0, 0, 0, 0, 0};
 
-    GW::AgentLiving* shatterDelusionsTarget = nullptr;
     GW::AgentLiving* enchantedEnemy = nullptr;
     std::set<uint32_t> mesmerEffectSet = {};
 

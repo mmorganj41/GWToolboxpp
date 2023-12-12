@@ -25,6 +25,7 @@ public:
 
     bool AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving* playerLiving) override;
     bool UseCombatSkill() override;
+    bool UseOutOfCombatSkill() override;
 
     void StopCombat() override;
     void StartCombat() override;
@@ -51,7 +52,6 @@ private:
     std::unordered_map<GW::AgentID, GW::AgentID> removeEnchantmentMap = {};
     std::unordered_map<GW::AgentID, uint32_t> conditionEffectMap = {};
     GW::AgentLiving* hexedAlly = nullptr;
-    GW::AgentLiving* enchantedEnemy = nullptr;
     GW::AgentLiving* conditionedAlly = nullptr;
     GW::AgentLiving* lowEnergyAlly = nullptr;
     GW::AgentLiving* monkAgent = nullptr;

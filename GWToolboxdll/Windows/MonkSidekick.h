@@ -64,4 +64,5 @@ private:
     uint32_t damagedAllies = 0;
 
     bool blessedAuraWithHeroic = false;
+    bool divineBoonWithHeroic = false;
 };

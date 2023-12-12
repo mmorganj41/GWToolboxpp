@@ -45,6 +45,7 @@ namespace {
     uint32_t dialog_type = 0;
     bool first_move = true;
     size_t sidekick_position = 0;
+    clock_t resignTimer = 0;
 } // namespace
 
 bool SidekickWindow::GetEnabled() { return enabled; }

@@ -63,12 +63,6 @@ bool MesmerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLiving*
                 if (!already_casting) enchantedEnemy = agentLiving; 
             }
         }
-        if ((!shatterDelusionsTarget)) {
-            if (GW::GetSquareDistance(playerLiving->pos, agentLiving->pos) <= GW::Constants::SqrRange::Spellcast)
-                if (mesmerEffectSet.contains(agentLiving->agent_id)) {
-                    shatterDelusionsTarget = agentLiving;
-                }
-        }
         if (!hexedAllies.empty()) {
             for (auto& it : hexedAllies) {
                 GW::Agent* ally = GW::Agents::GetAgentByID(it.first);
@@ -168,11 +162,10 @@ bool MesmerSidekick::UseCombatSkill()
             }
         }
 
-        if (shatterDelusionsTarget && cur_energy > 10) {
-            GW::SkillbarSkill shatterDelusions = skillbar->skills[0];
-            GW::SkillbarSkill cryOfPain = skillbar->skills[3];
-            if (!shatterDelusions.GetRecharge() && cryOfPain.GetRecharge()) {
-                if (UseSkillWithTimer(0, shatterDelusionsTarget->agent_id)) return true;
+        if (enchantedEnemy && cur_energy > 15 && (!minimum_next_sequence || *minimum_next_sequence > 1750 * fast_casting_activation_array[fastCasting] / 100)) {
+            GW::SkillbarSkill mirrorOfDisenchantment = skillbar->skills[0];
+            if (!mirrorOfDisenchantment.GetRecharge()) {
+                if (UseSkillWithTimer(0, enchantedEnemy->agent_id)) return true;
             }
         }
     }
@@ -220,7 +213,6 @@ void MesmerSidekick::HardReset()
     mesmerEffectSet.clear();
     enchantedEnemy = nullptr;
     hexedAllies.clear();
-    shatterDelusionsTarget = nullptr;
     ResetReaction();
     cureHexMap.clear();
     removeEnchantmentMap.clear();
@@ -230,7 +222,6 @@ void MesmerSidekick::ResetTargetValues() {
     minimum_next_sequence = std::nullopt;
     hexedAllies.clear();
     enchantedEnemy = nullptr;
-    shatterDelusionsTarget = nullptr;
 }
 
 void MesmerSidekick::CustomLoop(GW::AgentLiving* sidekick) {

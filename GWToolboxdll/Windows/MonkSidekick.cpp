@@ -130,6 +130,7 @@ void MonkSidekick::CustomLoop(GW::AgentLiving* sidekick)
 
     if (!GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain)) {
         blessedAuraWithHeroic = false;
+        divineBoonWithHeroic = false;
     }
 
 
@@ -357,8 +358,28 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
 
+    GW::SkillbarSkill divineBoon = skillbar->skills[5];
+    if (cur_energy > 10 && !divineBoon.GetRecharge()) {
+        if (GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain) && !divineBoonWithHeroic) {
+            GW::Effect* divineBoonEffect = GW::Effects::GetPlayerEffectBySkillId(divineBoon.skill_id);
+            if (divineBoonEffect) {
+                GW::Effects::DropBuff(divineBoonEffect->effect_id);
+                return true;
+            }
+            else if (UseSkillWithTimer(5)) {
+                divineBoonWithHeroic = true;
+                return true;
+            }
+        }
+        else if (!GW::Effects::GetPlayerEffectBySkillId(divineBoon.skill_id)) {
+            if (UseSkillWithTimer(5)) {
+                return true;
+            }
+        }
+    }
+
     GW::SkillbarSkill airOfEnchantment = skillbar->skills[6];
-    if (cur_energy > 5 && !airOfEnchantment.GetRecharge()) {
+    if (cur_energy > 6 && !airOfEnchantment.GetRecharge()) {
         if (necromancerAgent && (!airOfEnchantmentMap.contains(necromancerAgent->agent_id) || airOfEnchantmentMap[necromancerAgent->agent_id].duration - TIMER_DIFF(airOfEnchantmentMap[necromancerAgent->agent_id].startTime) < 2000)) {
             if (UseSkillWithTimer(6, necromancerAgent->agent_id)) {
                 return true;
@@ -371,31 +392,9 @@ bool MonkSidekick::UseCombatSkill() {
         }
     }
 
-    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
-
-    GW::SkillbarSkill vanguardBannerOfWisdom = skillbar->skills[5];
-    bool canUseWisdom = !vanguardBannerOfWisdom.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfWisdom.skill_id);
-    if (cur_energy > 10 && canUseWisdom) {
-        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Touch) ||
-            (target && !wardEffect && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
-            if (UseSkillWithTimer(5)) {
-                castingWard = false;
-                return true;
-            }
-        }
-        else {
-            castingWard = true;
-        }
-    }
-    else {
-        castingWard = false;
-    }
-
-    if (castingWard) return false;
-
     if (lowest_health_ally && lowest_health_ally->hp < .7 && seedOfLifeTarget && !seedOfLifeMap.contains(seedOfLifeTarget)) {
         GW::SkillbarSkill seedOfLife = skillbar->skills[0];
-        if (cur_energy > 5 && !seedOfLife.GetRecharge()) {
+        if (cur_energy > 6 && !seedOfLife.GetRecharge()) {
             GW::Agent* seedOfLifeTargetAgent = GW::Agents::GetAgentByID(seedOfLifeTarget);
             GW::AgentLiving* seedOfLifeLiving = seedOfLifeTargetAgent ? seedOfLifeTargetAgent->GetAsAgentLiving() : nullptr;
             if (seedOfLifeLiving && seedOfLifeLiving->GetIsAlive() && UseSkillWithTimer(0, seedOfLifeTarget)) {
@@ -405,7 +404,7 @@ bool MonkSidekick::UseCombatSkill() {
     }
 
     GW::SkillbarSkill dismissCondition = skillbar->skills[2];
-    if (cur_energy > 5 && !dismissCondition.GetRecharge()) {
+    if (cur_energy > 6 && !dismissCondition.GetRecharge()) {
         if (conditionedAlly) {
             if (UseSkillWithTimer(2, conditionedAlly->agent_id)) {
                 return true;
@@ -414,17 +413,17 @@ bool MonkSidekick::UseCombatSkill() {
     }
 
     GW::SkillbarSkill spiritBond = skillbar->skills[3];
-    if (cur_energy > 10 && !spiritBond.GetRecharge()) {
-        if (lowest_health_ally && lowest_health_ally->hp < .6 && !spiritBondMap.contains(lowest_health_ally->agent_id)) {
+    if (cur_energy > 11 && !spiritBond.GetRecharge()) {
+        if (lowest_health_ally && lowest_health_ally->hp < .55 && !spiritBondMap.contains(lowest_health_ally->agent_id)) {
             if (UseSkillWithTimer(3, lowest_health_ally->agent_id)) {
                 return true;
             }
         }
     }
 
-    if (cur_energy < 5) return false;
+    if (cur_energy < 6) return false;
     
-    if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .68 && lowestHealthIncludingPet->GetIsEnchanted()) {
+    if (!dismissCondition.GetRecharge() && lowestHealthIncludingPet && lowestHealthIncludingPet->hp < .65 && lowestHealthIncludingPet->GetIsEnchanted()) {
         if (UseSkillWithTimer(2, lowestHealthIncludingPet->agent_id)) {
             return true;
         }
@@ -438,8 +437,6 @@ bool MonkSidekick::UseCombatSkill() {
         if (shieldAgentLiving && shieldAgentLiving->GetIsAlive() && UseSkillWithTimer(4, shieldOfAbsorptionTarget)) {
             return true;
         }
-
-
     }
 
     GW::SkillbarSkill aegis = skillbar->skills[7]; 
@@ -491,6 +488,34 @@ bool MonkSidekick::UseOutOfCombatSkill()
         }
     }
 
+    GW::SkillbarSkill divineBoon = skillbar->skills[5];
+    if (cur_energy > 10 && !divineBoon.GetRecharge()) {
+        if (GW::Effects::GetPlayerEffectBySkillId(GW::Constants::SkillID::Heroic_Refrain) && !divineBoonWithHeroic) {
+            GW::Effect* divineBoonEffect = GW::Effects::GetPlayerEffectBySkillId(divineBoon.skill_id);
+            if (divineBoonEffect) {
+                GW::Effects::DropBuff(divineBoonEffect->effect_id);
+                return true;
+            }
+            else if (UseSkillWithTimer(5)) {
+                divineBoonWithHeroic = true;
+                return true;
+            }
+        }
+        else if (!GW::Effects::GetPlayerEffectBySkillId(divineBoon.skill_id)) {
+            if (UseSkillWithTimer(5)) {
+                return true;
+            }
+        }
+    }
+
+    GW::SkillbarSkill dismissCondition = skillbar->skills[2];
+    if (cur_energy > 5 && !dismissCondition.GetRecharge()) {
+        if (conditionedAlly) {
+            if (UseSkillWithTimer(2, conditionedAlly->agent_id)) {
+                return true;
+            }
+        }
+    }
 
     return false;
 }
@@ -512,7 +537,7 @@ void MonkSidekick::EffectOnTarget(const uint32_t target, const uint32_t value)
     else if (targetLiving->allegiance == GW::Constants::Allegiance::Ally_NonAttackable) {
         switch (value) {
             case 1254: {
-                SkillDuration skillDuration = {TIMER_INIT(), 5000};
+                SkillDuration skillDuration = {TIMER_INIT(), 4000};
                 spiritBondMap.insert_or_assign(target, skillDuration);
                 break;
             }

@@ -120,13 +120,6 @@ bool NecromancerSidekick::AgentChecker(GW::AgentLiving* agentLiving, GW::AgentLi
                 bloodBondMap.insert_or_assign(agentLiving->agent_id, skillDuration);
             }
         }
-        if (!enchantedEnemy && agentLiving->GetIsEnchanted() && GW::GetDistance(agentLiving->pos, playerLiving->pos) < GW::Constants::Range::Spellcast * 11 / 10) {
-            bool already_casting = false;
-            for (auto& it : removeEnchantmentMap) {
-                if (it.second == agentLiving->agent_id) already_casting = true;
-            }
-            if (!already_casting) enchantedEnemy = agentLiving;
-        }
     }
     else if (party_ids.contains(agentLiving->agent_id) && agentLiving->GetIsAlive()) {
         if (!hexedAlly && agentLiving->GetIsHexed()) {
@@ -266,6 +259,28 @@ bool NecromancerSidekick::UseCombatSkill() {
         return false;
     }
 
+    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
+
+    GW::SkillbarSkill vanguardBannerOfWisdom = skillbar->skills[7];
+    bool canUseWisdom = !vanguardBannerOfWisdom.GetRecharge() && !GW::Effects::GetPlayerEffectBySkillId(vanguardBannerOfWisdom.skill_id);
+    if (cur_energy > 10 && canUseWisdom) {
+        if ((wardEffect && GW::GetDistance(wardEffect->position, sidekickLiving->pos) <= GW::Constants::Range::Touch) ||
+            (target && !wardEffect && GW::GetDistance(target->pos, sidekickLiving->pos) <= GW::Constants::Range::Earshot + GW::Constants::Range::Area / 4)) {
+            if (UseSkillWithTimer(7)) {
+                castingWard = false;
+                return true;
+            }
+        }
+        else {
+            castingWard = true;
+        }
+    }
+    else {
+        castingWard = false;
+    }
+
+    if (castingWard) return false;
+
     if (hexedAlly) {
         GW::SkillbarSkill cureHex = skillbar->skills[4];
         GW::Skill* cureHexInfo = GW::SkillbarMgr::GetSkillConstantData(cureHex.skill_id);
@@ -287,16 +302,6 @@ bool NecromancerSidekick::UseCombatSkill() {
         }
     }
 
-    if (enchantedEnemy) {
-        GW::SkillbarSkill jaundicedGaze = skillbar->skills[7];
-        GW::Skill* jaundicedGazeInfo = GW::SkillbarMgr::GetSkillConstantData(jaundicedGaze.skill_id);
-        if (CanUseSkill(jaundicedGaze, jaundicedGazeInfo, cur_energy)) {
-            if (UseSkillWithTimer(7, enchantedEnemy->agent_id)) {
-                return true;
-            }
-        }
-    }
-
     if (lowest_health_enemy && lowest_health_enemy->hp < .5 && (sidekickLiving->hp < .7 || sidekickLiving->energy < .5)) {
         GW::SkillbarSkill signetOfLostSouls = skillbar->skills[5];
         if (!signetOfLostSouls.GetRecharge()) {
@@ -307,7 +312,7 @@ bool NecromancerSidekick::UseCombatSkill() {
     }
     GW::SkillbarSkill bloodIsPower = skillbar->skills[0];
     
-    if (monkAgent && sidekickLiving->hp > .65 && TIMER_DIFF(monkTimer) > 10000) {
+    if (monkAgent && sidekickLiving->hp > .65 && TIMER_DIFF(monkTimer) > 11500) {
         if (UseSkillWithTimer(0, monkAgent->agent_id)) {
             monkTimer = TIMER_INIT();
             return true;
@@ -337,8 +342,6 @@ bool NecromancerSidekick::UseCombatSkill() {
         }
     }
 
-    GW::AgentLiving* target = GW::Agents::GetTargetAsAgentLiving();
-
     if (!target) return false;
 
     GW::SkillbarSkill bloodBond = skillbar->skills[3];
@@ -346,6 +349,48 @@ bool NecromancerSidekick::UseCombatSkill() {
     if (!bloodBondMap.contains(target->agent_id) && target->hp > .25 && bloodBondInfo && CanUseSkill(bloodBond, bloodBondInfo, cur_energy)) {
         if (UseSkillWithTimer(3, target->agent_id)) {
             return true;
+        }
+    }
+
+    return false;
+}
+
+bool NecromancerSidekick::UseOutOfCombatSkill()
+{
+    GW::Skillbar* skillbar = GW::SkillbarMgr::GetPlayerSkillbar();
+    if (!skillbar) {
+        return false;
+    }
+
+    GW::AgentLiving* sidekickLiving = GW::Agents::GetPlayerAsAgentLiving();
+    if (!sidekickLiving) {
+        return false;
+    }
+
+    float cur_energy = sidekickLiving->max_energy * sidekickLiving->energy;
+
+    if (isCasting(sidekickLiving)) {
+        return false;
+    }
+
+    if (hexedAlly) {
+        GW::SkillbarSkill cureHex = skillbar->skills[4];
+        GW::Skill* cureHexInfo = GW::SkillbarMgr::GetSkillConstantData(cureHex.skill_id);
+        if (CanUseSkill(cureHex, cureHexInfo, cur_energy)) {
+            if (UseSkillWithTimer(4, hexedAlly->agent_id)) {
+                hexTimer = 0;
+                return true;
+            }
+        }
+    }
+
+    if (conditionedAlly) {
+        GW::SkillbarSkill foulFeast = skillbar->skills[6];
+        GW::Skill* foulFeastInfo = GW::SkillbarMgr::GetSkillConstantData(foulFeast.skill_id);
+        if (CanUseSkill(foulFeast, foulFeastInfo, cur_energy)) {
+            if (UseSkillWithTimer(6, conditionedAlly->agent_id)) {
+                return true;
+            }
         }
     }
 
@@ -364,7 +409,6 @@ void NecromancerSidekick::HardReset() {
     hexedAlly = nullptr;
     monkAgent = nullptr;
     conditionedAlly = nullptr;
-    enchantedEnemy = nullptr;
     cureHexMap.clear();
     bloodIsPowerSet.clear();
     removeEnchantmentMap.clear();
@@ -383,7 +427,6 @@ void NecromancerSidekick::StopCombat() {
 void NecromancerSidekick::ResetTargetValues()
 {
     hexedAlly = nullptr;
-    enchantedEnemy = nullptr;
     conditionedAlly = nullptr;
     conditionScore = 0;
     monkAgent = nullptr;
